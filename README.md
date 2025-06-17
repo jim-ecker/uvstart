@@ -15,23 +15,30 @@
 - Fully offline operation after installation
 
 ---
-
 ## Installation
 
-Install `uvstart` into your local `~/.local/bin`:
+Clone the repo and install `uvstart` locally:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jim-ecker/uvstart/main/installer.sh | bash
+git clone https://github.com/jim-ecker/uvstart.git
+cd uvstart
+./installer.sh
 ```
 
-Make sure `~/.local/bin` is in your `$PATH`.
+This will install `uvstart` into `~/.local/uvstart` and symlink the script to `~/.local/bin/uvstart`.
 
-To uninstall:
+Make sure `~/.local/bin` is in your `$PATH`:
 
 ```bash
-~/.local/uvstart/uninstaller.sh
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
+source ~/.bashrc                                           # or source ~/.zshrc
 ```
 
+You can now run:
+
+```bash
+uvstart help
+```
 ---
 
 ## Getting Started
