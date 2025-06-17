@@ -1,6 +1,6 @@
 # uvstart
 
-`uvstart` is a fast, zero-dependency Python project initializer for modern development workflows. It enables Python developers to create new projects with fully isolated environments, Makefile automation, and reusable code templates — all without relying on global Python installations or virtualenvs.
+`uvstart` is a fast Python project initializer for modern development workflows, that scaffolds Python projects using existing tooling like uv or poetry. No Python installation or virtualenv needed to run uvstart itself. It enables Python developers to create new projects with fully isolated environments, Makefile automation, and reusable code templates.
 
 This project leverages the speed and simplicity of [`uv`](https://github.com/astral-sh/uv), while optionally supporting [`poetry`](https://python-poetry.org/). It integrates flexible project scaffolding and configuration via a lightweight CLI and Makefile backend.
 
