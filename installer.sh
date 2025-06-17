@@ -1,13 +1,23 @@
 #!/bin/bash
 
-INSTALL_DIR="$HOME/.local/bin"
+# Set install paths
+INSTALL_DIR="$HOME/.local/uvstart"
+BIN_DIR="$HOME/.local/bin"
+EXECUTABLE="uvstart"
+
+# Create target directories
 mkdir -p "$INSTALL_DIR"
+mkdir -p "$BIN_DIR"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cp "$SCRIPT_DIR/uvstart" "$INSTALL_DIR/uvstart"
-chmod +x "$INSTALL_DIR/uvstart"
+# Copy all files into the install directory
+SCRIPT_SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cp -r "$SCRIPT_SOURCE_DIR/"* "$INSTALL_DIR"
 
-# Add to PATH if not already in shell rc
+# Create or update the symlink
+ln -sf "$INSTALL_DIR/$EXECUTABLE" "$BIN_DIR/$EXECUTABLE"
+chmod +x "$INSTALL_DIR/$EXECUTABLE"
+
+# Ensure bin directory is in PATH
 SHELL_RC=""
 if [ -n "$ZSH_VERSION" ]; then
   SHELL_RC="$HOME/.zshrc"
@@ -16,11 +26,11 @@ elif [ -n "$BASH_VERSION" ]; then
 fi
 
 if [ -n "$SHELL_RC" ]; then
-  if ! grep -q "$INSTALL_DIR" "$SHELL_RC"; then
-    echo "export PATH=\"$INSTALL_DIR:\$PATH\"" >> "$SHELL_RC"
-    echo "Added $INSTALL_DIR to PATH in $SHELL_RC"
+  if ! grep -q "$BIN_DIR" "$SHELL_RC"; then
+    echo "export PATH=\"$BIN_DIR:\$PATH\"" >> "$SHELL_RC"
+    echo "Added $BIN_DIR to PATH in $SHELL_RC"
   fi
 fi
 
-echo "Installed uvstart to $INSTALL_DIR"
-echo "You can now run: uvstart help"
+echo "uvstart installed to $INSTALL_DIR"
+echo "You can now run: uvstart init ..."
