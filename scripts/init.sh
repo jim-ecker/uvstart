@@ -5,9 +5,10 @@ set -e
 PYTHON_VERSION="$1"
 shift
 
-# Default backend
+# Default options
 BACKEND="uv"
 TEMPLATE=""
+NO_GIT=false
 
 # Parse optional flags
 while [[ "$#" -gt 0 ]]; do
@@ -19,6 +20,10 @@ while [[ "$#" -gt 0 ]]; do
         --template)
             TEMPLATE="$2"
             shift 2
+            ;;
+        --no-git)
+            NO_GIT=true
+            shift
             ;;
         *)
             echo "Unknown option: $1"
@@ -53,10 +58,12 @@ version = "0.1.0"
 requires-python = ">=${PYTHON_VERSION}"
 EOF
 
-# Initialize git repo
-git init > /dev/null
-git add .
-git commit -m "Initial project scaffold for $PROJECT_NAME" > /dev/null
+# Initialize git repo (unless disabled)
+if [[ "$NO_GIT" = false ]]; then
+    git init --initial-branch=main > /dev/null
+    git add .
+    git commit -m "Initial project scaffold for $PROJECT_NAME" > /dev/null
+fi
 
 echo "Project '$PROJECT_NAME' initialized with backend '$BACKEND'"
 
@@ -64,3 +71,4 @@ echo "Project '$PROJECT_NAME' initialized with backend '$BACKEND'"
 if [[ -n "$TEMPLATE" ]]; then
     bash "$(dirname "$0")/template.sh" apply "$TEMPLATE"
 fi
+

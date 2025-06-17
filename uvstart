@@ -2,18 +2,18 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS="$SCRIPT_DIR/scripts"
+SCRIPT_PATH="$(readlink -f "$0")"
+SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 COMMAND="$1"
 shift || true
 
 case "$COMMAND" in
   init)
-    bash "$SCRIPTS/init.sh" "$@"
+    bash "$SCRIPT_DIR/scripts/init.sh" "$@"
     ;;
   template)
-    bash "$SCRIPTS/template.sh" "$@"
+    bash "$SCRIPT_DIR/scripts/template.sh" "$@"
     ;;
   help|-h|--help|"")
     echo "Usage: uvstart <command> [args]"
