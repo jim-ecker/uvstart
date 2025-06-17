@@ -1,0 +1,14 @@
+name: uvstart test
+
+on: [push, pull_request]
+
+jobs:
+  scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scaffold sample project
+        run: |
+          mkdir test_project && cd test_project
+          bash ../uvstart 3.12 --backend uv
+          test -f Makefile && test -f main.py

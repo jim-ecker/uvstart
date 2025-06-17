@@ -1,0 +1,7 @@
+*.pyc
+__pycache__/
+.venv/
+__pypackages__/
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+.DS_Store
