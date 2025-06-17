@@ -1,14 +1,41 @@
-name: uvstart test
+name: uvstart Test
 
 on: [push, pull_request]
 
 jobs:
   scaffold:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [uv, poetry]
+
     steps:
       - uses: actions/checkout@v4
-      - name: Scaffold sample project
+
+      - name: Make uvstart executable
+        run: chmod +x uvstart
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend (${{ matrix.backend }})
         run: |
-          mkdir test_project && cd test_project
-          bash ../uvstart 3.12 --backend uv
-          test -f Makefile && test -f main.py
+          if [ "${{ matrix.backend }}" = "uv" ]; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          elif [ "${{ matrix.backend }}" = "poetry" ]; then
+            curl -sSL https://install.python-poetry.org | python3 -
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Create test project
+        run: |
+          mkdir test_project
+          cd test_project
+          ../uvstart init 3.12 --backend ${{ matrix.backend }}
+          test -f Makefile
+          test -f main.py
+          test -f pyproject.toml
+
