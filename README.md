@@ -18,36 +18,19 @@
 
 ## Installation
 
-To install `uvstart` locally:
+Install `uvstart` into your local `~/.local/bin`:
 
 ```bash
-git clone https://github.com/jim-ecker/uvstart.git
-cd uvstart
-./installer.sh
+curl -fsSL https://raw.githubusercontent.com/jim-ecker/uvstart/main/installer.sh | bash
 ```
 
-This will copy the `uvstart` script into `~/.local/bin` and ensure it’s accessible from any directory.
+Make sure `~/.local/bin` is in your `$PATH`.
 
-### Make sure your shell includes `~/.local/bin` in your `$PATH`.
-
-To verify:
+To uninstall:
 
 ```bash
-echo $PATH
+~/.local/uvstart/uninstaller.sh
 ```
-
-If not present, you can add it by appending the following to your shell config:
-
-- For Zsh:
-  ```bash
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-  ```
-- For Bash:
-  ```bash
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-  ```
-
-Then restart your terminal or run `source ~/.zshrc` or `source ~/.bashrc`.
 
 ---
 
@@ -75,11 +58,18 @@ MyProject/
 ├── pyproject.toml
 ├── .gitignore
 ├── .gitattributes
+├── apply_template.mk
 ├── notebooks/
 └── README.md
 ```
 
-You can skip `--template` during init and apply one later using `make`.
+By default, `uvstart` also initializes a Git repository using the `main` branch.
+
+To skip Git initialization, add the `--no-git` flag:
+
+```bash
+uvstart init 3.12 --no-git
+```
 
 ---
 
@@ -88,7 +78,7 @@ You can skip `--template` during init and apply one later using `make`.
 ### Initialization
 
 ```bash
-uvstart init <python-version> [--backend uv|poetry] [--template <template-name>]
+uvstart init <python-version> [--backend uv|poetry] [--template <template-name>] [--no-git]
 ```
 
 Examples:
@@ -96,6 +86,7 @@ Examples:
 ```bash
 uvstart init 3.11
 uvstart init 3.12 --backend poetry --template cli
+uvstart init 3.12 --no-git
 ```
 
 ### Template Management
@@ -105,7 +96,7 @@ uvstart template list
 uvstart template apply notebook
 ```
 
-Or:
+Or using `make`:
 
 ```bash
 make template TEMPLATE=notebook
@@ -126,10 +117,10 @@ make template TEMPLATE=notebook
 
 ## Backends
 
-| Backend | Description                          | Output Directory     |
-|---------|--------------------------------------|----------------------|
-| `uv`    | Fast, no-venv, uses `__pypackages__` | `__pypackages__/`    |
-| `poetry`| Full-featured virtualenv manager     | `.venv/`             |
+| Backend  | Description                          | Output Directory     |
+|----------|--------------------------------------|----------------------|
+| `uv`     | Fast, no-venv, uses `__pypackages__` | `__pypackages__/`    |
+| `poetry` | Full-featured virtualenv manager     | `.venv/`             |
 
 ---
 
@@ -154,6 +145,7 @@ cd uvstart
 ```
 
 To install globally:
+
 ```bash
 ./installer.sh
 ```
