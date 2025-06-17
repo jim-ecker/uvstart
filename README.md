@@ -1,66 +1,68 @@
 # uvstart
 
-`uvstart` is a fast Python project initializer for modern development workflows, that scaffolds Python projects using existing tooling like uv or poetry. No Python installation or virtualenv needed to run uvstart itself. It enables Python developers to create new projects with fully isolated environments, Makefile automation, and reusable code templates.
-
-This project leverages the speed and simplicity of [`uv`](https://github.com/astral-sh/uv), while optionally supporting [`poetry`](https://python-poetry.org/). It integrates flexible project scaffolding and configuration via a lightweight CLI and Makefile backend.
+`uvstart` is a fast, no-boilerplate Python project initializer that works seamlessly with modern tools like [`uv`](https://github.com/astral-sh/uv) or [`poetry`](https://python-poetry.org/). It helps you create new Python projects with isolated environments, templated features, and automation-ready Makefiles — all without relying on global Python environments or Anaconda.
 
 ---
 
 ## Features
 
-- Lightweight CLI written in portable shell script
-- Use `uv` with `__pypackages__` or `poetry` with `.venv`
-- Language-version pinning per project (e.g., Python 3.12)
-- Pluggable feature templates (notebook, CLI, PyTorch, etc.)
-- Makefile-based automation (`make sync`, `make run`, `make notebook`, etc.)
-- Git- and Jupyter-ready out of the box
-- Requires no global Python environment or prior virtualenv setup
+- Shell-based CLI with no runtime dependencies
+- Supports `uv` (`__pypackages__`) and `poetry` (`.venv`)
+- Initializes directly in the current directory (no nested folders)
+- Auto-generates `Makefile`, `pyproject.toml`, `.gitignore`, and starter files
+- Optional templates for Jupyter, CLI, PyTorch, research, and more
+- Git-ready and Jupyter-compatible by default
+- Fully offline operation after installation
 
 ---
 
 ## Installation
 
-Run the installer script to install `uvstart` into your local `~/.local/bin`:
+Install `uvstart` into your local `~/.local/bin`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jim-ecker/uvstart/main/installer.sh | bash
 ```
 
-Make sure `~/.local/bin` is in your shell’s `$PATH`.
+Make sure `~/.local/bin` is in your `$PATH`.
 
 ---
 
 ## Getting Started
 
-### Create a New Project
+### Step 1: Create a project folder
 
 ```bash
-mkdir MyNewProject
-cd MyNewProject
+mkdir MyProject
+cd MyProject
+```
+
+### Step 2: Initialize the project
+
+```bash
 uvstart init 3.12 --backend uv --template notebook
 ```
 
-This creates a fully structured project directory with:
+This will create the following structure directly in the current directory:
 
 ```
-MyNewProject/
+MyProject/
 ├── Makefile
 ├── main.py
 ├── pyproject.toml
 ├── .gitignore
 ├── .gitattributes
 ├── notebooks/
-├── README.md
-└── __pypackages__/ (or .venv/)
+└── README.md
 ```
 
-You can also skip the `--template` argument during init and add feature templates later.
+You can skip `--template` during init and apply one later using `make`.
 
 ---
 
-## CLI Commands
+## CLI Usage
 
-### Project Initialization
+### Initialization
 
 ```bash
 uvstart init <python-version> [--backend uv|poetry] [--template <template-name>]
@@ -75,19 +77,12 @@ uvstart init 3.12 --backend poetry --template cli
 
 ### Template Management
 
-List available templates:
-
 ```bash
 uvstart template list
-```
-
-Apply a feature template:
-
-```bash
 uvstart template apply notebook
 ```
 
-Or using Makefile interface:
+Or:
 
 ```bash
 make template TEMPLATE=notebook
@@ -97,85 +92,65 @@ make template TEMPLATE=notebook
 
 ## Makefile Targets
 
-All `uvstart` projects include a Makefile that supports the following:
-
 | Command                     | Description                          |
 |----------------------------|--------------------------------------|
 | `make sync`                | Install dependencies                 |
-| `make run`                 | Run the default entry point          |
-| `make notebook`            | Launch a Jupyter notebook            |
-| `make template TEMPLATE=…` | Add a new feature template to project |
-
-You may extend or override these rules in your local Makefile.
+| `make run`                 | Run the main Python entry point      |
+| `make notebook`            | Launch Jupyter Notebook              |
+| `make template TEMPLATE=…` | Add a feature template to project    |
 
 ---
 
 ## Backends
 
-`uvstart` supports two environment managers:
-
-| Backend | Description                            | Output            |
-|---------|----------------------------------------|-------------------|
-| `uv`    | Fast, minimal, uses `__pypackages__`   | `__pypackages__/` |
-| `poetry`| Full-featured, uses virtualenv         | `.venv/`          |
-
-By default, `uv` is used.
+| Backend | Description                          | Output Directory     |
+|---------|--------------------------------------|----------------------|
+| `uv`    | Fast, no-venv, uses `__pypackages__` | `__pypackages__/`    |
+| `poetry`| Full-featured virtualenv manager     | `.venv/`             |
 
 ---
 
 ## Templates
 
-Templates are pluggable feature scaffolds under `templates/features/`.
+Templates live in `templates/features/` and can be applied to any project. Available templates include:
 
-Available templates include:
-
-- `notebook` — Jupyter support with default notebook folder
-- `cli` — Command-line parser using `argparse`
-- `pytorch` — Training loop, data loading scaffolding
-- `research` — Academic setup with BibTeX and LaTeX files
-- `web` — Coming soon (FastAPI or Flask)
-
-You can create your own templates and place them under `templates/features/`.
+- `notebook` – Jupyter setup
+- `cli` – Command-line `argparse` starter
+- `pytorch` – Training loop and data loader scaffold
+- `research` – LaTeX paper and BibTeX setup
+- `web` – (coming soon)
 
 ---
 
 ## Developer Setup
 
-Clone the repository:
-
 ```bash
-git clone git@github.com:jim-ecker/uvstart.git
+git clone https://github.com/jim-ecker/uvstart.git
 cd uvstart
+./uvstart init 3.12 --backend uv
 ```
 
-Run a local test:
-
+To install globally:
 ```bash
-./uvstart init 3.12 --backend uv --template cli
+./installer.sh
 ```
 
-To add or modify templates:
-
-- `templates/backends/*.makefile` – backend-specific logic
-- `templates/features/<name>/` – feature scaffolds
-- `scripts/*.sh` – CLI logic (`init`, `template`)
+Then use `uvstart` in any folder to scaffold a new project.
 
 ---
 
 ## Contributing
 
-We welcome contributions! To contribute:
+PRs and issues welcome!
 
-1. Fork the repo and create a new branch.
-2. Add or improve a feature, backend, or template.
-3. Submit a pull request with a clear description.
+1. Fork the repo
+2. Make changes on a feature branch
+3. Submit a pull request
 
-Issues and feature requests can be filed at:
-[https://github.com/jim-ecker/uvstart/issues](https://github.com/jim-ecker/uvstart/issues)
+[https://github.com/jim-ecker/uvstart](https://github.com/jim-ecker/uvstart)
 
 ---
 
 ## License
 
-This project is licensed under the MIT License.  
-Copyright © 2025 [Jim Ecker](https://github.com/jim-ecker)
+MIT License © 2025 [Jim Ecker](https://github.com/jim-ecker)

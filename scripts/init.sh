@@ -37,15 +37,11 @@ cp "$(
     pwd
 )/${BACKEND}.makefile" ./Makefile
 
-cp "$(
-    cd "$(dirname "$0")/../templates/shared"
-    pwd
-)/.gitignore" .gitignore
+CORE_TEMPLATES="$(cd "$(dirname "$0")/../templates/core" && pwd)"
+cp "$CORE_TEMPLATES/.gitignore" .gitignore
+cp "$CORE_TEMPLATES/main.py" main.py
+cp "$CORE_TEMPLATES/.gitattributes" .gitattributes
 
-cp "$(
-    cd "$(dirname "$0")/../templates/shared"
-    pwd
-)/main.py" main.py
 
 echo "# ${PROJECT_NAME^}" > README.md
 

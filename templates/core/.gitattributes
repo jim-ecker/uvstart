@@ -1,0 +1,3 @@
+# Ensure notebooks are normalized with Git
+*.ipynb filter=strip-notebook-output
+
