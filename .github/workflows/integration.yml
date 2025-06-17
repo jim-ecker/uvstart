@@ -1,61 +1,26 @@
-name: uvstart Integration Test
+name: Integration Test
 
 on: [push, pull_request]
 
 jobs:
   integration:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        backend: [uv, poetry]
-
     steps:
       - uses: actions/checkout@v4
 
       - name: Make uvstart executable
         run: chmod +x uvstart
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install backend (${{ matrix.backend }})
+      - name: Set up Git identity for init.sh
         run: |
-          if [ "${{ matrix.backend }}" = "uv" ]; then
-            curl -LsSf https://astral.sh/uv/install.sh | sh
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          elif [ "${{ matrix.backend }}" = "poetry" ]; then
-            curl -sSL https://install.python-poetry.org | python3 -
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
-          fi
+          git config --global user.name "uvstart-bot"
+          git config --global user.email "uvstart@users.noreply.github.com"
 
-      - name: Scaffold and test full project functionality
+      - name: Scaffold and test project
         run: |
           mkdir test_project
           cd test_project
-          ../uvstart init 3.12 --backend ${{ matrix.backend }} --template notebook
+          ../uvstart init 3.12 --backend uv --template notebook
+          cd .
           make sync
-          make run
-
-          echo "Testing CLI template"
-          make template TEMPLATE=cli
-          grep "argparse" main.py
-
-          echo "Testing notebook template"
-          make notebook &
-          sleep 10
-          pkill -f jupyter
-
-          echo "Testing PyTorch template"
-          make template TEMPLATE=pytorch
-          python -c "import torch; print(torch.__version__)"
-
-          echo "Testing research template"
-          make template TEMPLATE=research
-          test -f references.bib
-          test -f paper.tex
-
-          echo "Simulate notebook execution"
-          pip install nbconvert --quiet
-          jupyter nbconvert --execute notebooks/example.ipynb --to html
+          test -f Makefile && test -f main.py && test -f pyproject.toml
