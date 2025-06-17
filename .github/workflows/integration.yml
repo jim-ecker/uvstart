@@ -16,11 +16,15 @@ jobs:
           git config --global user.name "uvstart-bot"
           git config --global user.email "uvstart@users.noreply.github.com"
 
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
       - name: Scaffold and test project
         run: |
           mkdir test_project
           cd test_project
           ../uvstart init 3.12 --backend uv --template notebook
-          cd .
           make sync
           test -f Makefile && test -f main.py && test -f pyproject.toml
