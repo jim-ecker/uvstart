@@ -1,69 +1,70 @@
 #!/bin/bash
+
+set -e
+
 PYTHON_VERSION="$1"
 shift
 
+# Default backend
 BACKEND="uv"
 TEMPLATE=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --backend)
-      BACKEND="$2"
-      shift 2
-      ;;
-    --template)
-      TEMPLATE="$2"
-      shift 2
-      ;;
-    *)
-      echo "Unknown option: $1"
-      exit 1
-      ;;
-  esac
+
+# Parse optional flags
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --backend)
+            BACKEND="$2"
+            shift 2
+            ;;
+        --template)
+            TEMPLATE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            exit 1
+            ;;
+    esac
 done
 
-PROJECT_NAME=$(basename "$PWD")
+# Determine project name from current directory
+PROJECT_NAME="$(basename "$PWD")"
 PROJECT_NAME=$(echo "$PROJECT_NAME" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr '[:upper:]' '[:lower:]')
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Create base files in current directory
+cp "$(
+    cd "$(dirname "$0")/../templates/backends"
+    pwd
+)/${BACKEND}.makefile" ./Makefile
 
-# Load and apply backend Makefile
-TEMPLATE_FILE="$SCRIPT_DIR/templates/backends/${BACKEND}.makefile"
-if [[ ! -f "$TEMPLATE_FILE" ]]; then
-  echo "Backend template not found: $TEMPLATE_FILE"
-  exit 1
-fi
-sed "s/{{PYTHON_VERSION}}/$PYTHON_VERSION/g; s/{{PROJECT_NAME}}/$PROJECT_NAME/g" "$TEMPLATE_FILE" > Makefile
+cp "$(
+    cd "$(dirname "$0")/../templates/shared"
+    pwd
+)/.gitignore" .gitignore
 
-cp "$SCRIPT_DIR/apply_template.mk" .
+cp "$(
+    cd "$(dirname "$0")/../templates/shared"
+    pwd
+)/main.py" main.py
 
-echo 'print("Hello from uvstart!")' > main.py
-mkdir -p notebooks
+echo "# ${PROJECT_NAME^}" > README.md
 
-echo "*.ipynb filter=nbstripout" > .gitattributes
-cat <<EOF > .gitignore
-.venv/
-__pypackages__/
-.ipynb_checkpoints/
-__pycache__/
+# Create pyproject.toml
+cat > pyproject.toml <<EOF
+[project]
+name = "${PROJECT_NAME}"
+version = "0.1.0"
+requires-python = ">=${PYTHON_VERSION}"
 EOF
 
-cat <<EOF > README.md
-# $PROJECT_NAME
-
-Bootstrapped with uvstart.
-EOF
-
-# If template specified, apply it
-if [[ -n "$TEMPLATE" ]]; then
-  "$SCRIPT_DIR/scripts/template.sh" apply "$TEMPLATE"
-fi
-
-if [ ! -d .git ]; then
-  git init
-fi
-if [ -z "$(git rev-parse --quiet HEAD)" ]; then
-  git add .
-  git commit -m "Initial scaffold with uvstart"
-fi
+# Initialize git repo
+git init > /dev/null
+git add .
+git commit -m "Initial project scaffold for $PROJECT_NAME" > /dev/null
 
 echo "Project '$PROJECT_NAME' initialized with backend '$BACKEND'"
+
+# Apply template if specified
+if [[ -n "$TEMPLATE" ]]; then
+    bash "$(dirname "$0")/template.sh" apply "$TEMPLATE"
+fi
