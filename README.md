@@ -18,13 +18,36 @@
 
 ## Installation
 
-Install `uvstart` into your local `~/.local/bin`:
+To install `uvstart` locally:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jim-ecker/uvstart/main/installer.sh | bash
+git clone https://github.com/jim-ecker/uvstart.git
+cd uvstart
+./installer.sh
 ```
 
-Make sure `~/.local/bin` is in your `$PATH`.
+This will copy the `uvstart` script into `~/.local/bin` and ensure it’s accessible from any directory.
+
+### Make sure your shell includes `~/.local/bin` in your `$PATH`.
+
+To verify:
+
+```bash
+echo $PATH
+```
+
+If not present, you can add it by appending the following to your shell config:
+
+- For Zsh:
+  ```bash
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+  ```
+- For Bash:
+  ```bash
+  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+  ```
+
+Then restart your terminal or run `source ~/.zshrc` or `source ~/.bashrc`.
 
 ---
 
