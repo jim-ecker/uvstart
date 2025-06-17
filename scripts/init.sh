@@ -41,7 +41,7 @@ CORE_TEMPLATES="$(cd "$(dirname "$0")/../templates/core" && pwd)"
 cp "$CORE_TEMPLATES/.gitignore" .gitignore
 cp "$CORE_TEMPLATES/main.py" main.py
 cp "$CORE_TEMPLATES/.gitattributes" .gitattributes
-
+cp "$CORE_TEMPLATES/apply_template.mk" apply_template.mk
 
 echo "# ${PROJECT_NAME^}" > README.md
 
