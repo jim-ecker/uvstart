@@ -15,6 +15,11 @@ jobs:
       - name: Make uvstart executable
         run: chmod +x uvstart
 
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-bot"
+          git config --global user.email "uvstart@users.noreply.github.com"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -38,4 +43,3 @@ jobs:
           test -f Makefile
           test -f main.py
           test -f pyproject.toml
-
