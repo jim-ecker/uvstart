@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPTS="$SCRIPT_DIR/scripts"
+
+COMMAND="$1"
+shift || true
+
+case "$COMMAND" in
+  init)
+    bash "$SCRIPTS/init.sh" "$@"
+    ;;
+  template)
+    bash "$SCRIPTS/template.sh" "$@"
+    ;;
+  help|-h|--help|"")
+    echo "Usage: uvstart <command> [args]"
+    echo
+    echo "Commands:"
+    echo "  init       Initialize a new Python project"
+    echo "  template   Apply or list project templates"
+    echo
+    echo "Run 'uvstart <command> --help' for command-specific options."
+    ;;
+  *)
+    echo "Unknown command: $COMMAND"
+    echo "Run 'uvstart help' for usage."
+    exit 1
+    ;;
+esac
+
