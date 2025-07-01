@@ -40,6 +40,10 @@ PROJECT_NAME=$(echo "$PROJECT_NAME" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr 
 BACKEND_DIR="$HOME/.local/uvstart/templates/backends"
 cp "$BACKEND_DIR/${BACKEND}.makefile" ./Makefile
 
+# Replace template vars
+sed -i "s/{{PYTHON_VERSION}}/$PYTHON_VERSION/g" Makefile
+sed -i "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" Makefile
+
 # Copy core files
 CORE_DIR="$HOME/.local/uvstart/templates/core"
 cp "$CORE_DIR/.gitignore" .gitignore
