@@ -40,9 +40,14 @@ PROJECT_NAME=$(echo "$PROJECT_NAME" | sed -E 's/([a-z0-9])([A-Z])/\1_\2/g' | tr 
 BACKEND_DIR="$HOME/.local/uvstart/templates/backends"
 cp "$BACKEND_DIR/${BACKEND}.makefile" ./Makefile
 
-# Replace template vars
-sed -i "s/{{PYTHON_VERSION}}/$PYTHON_VERSION/g" Makefile
-sed -i "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" Makefile
+# Replace template vars (cross-platform safe)
+if [[ "$OSTYPE" == "darwin"* ]]; then
+    sed -i '' "s/{{PYTHON_VERSION}}/$PYTHON_VERSION/g" Makefile
+    sed -i '' "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" Makefile
+else
+    sed -i "s/{{PYTHON_VERSION}}/$PYTHON_VERSION/g" Makefile
+    sed -i "s/{{PROJECT_NAME}}/$PROJECT_NAME/g" Makefile
+fi
 
 # Copy core files
 CORE_DIR="$HOME/.local/uvstart/templates/core"
@@ -50,7 +55,9 @@ cp "$CORE_DIR/.gitignore" .gitignore
 cp "$CORE_DIR/main.py" main.py
 cp "$CORE_DIR/.gitattributes" .gitattributes
 
-echo "# ${PROJECT_NAME^}" > README.md
+PROJECT_TITLE="$(echo "${PROJECT_NAME:0:1}" | tr '[:lower:]' '[:upper:]')${PROJECT_NAME:1}"
+echo "# $PROJECT_TITLE" > README.md
+
 
 # Create pyproject.toml
 cat > pyproject.toml <<EOF
