@@ -1,0 +1,131 @@
+metadata:
+  name: "web"
+  description: "Modern web API with FastAPI, authentication, database integration, and comprehensive documentation"
+  category: "web"
+  version: "2.0.0"
+  author: "uvstart"
+  tags: ["fastapi", "web", "api", "rest", "authentication", "database"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]
+  features: ["fastapi", "web", "authentication", "database", "documentation"]
+  min_python: "3.8"
+  includes_ci: true
+  includes_docker: true
+  includes_tests: true
+
+requirements:
+  dependencies:
+    - "fastapi>=0.100.0"
+    - "uvicorn[standard]>=0.23.0"
+    - "pydantic>=2.0.0"
+    - "pydantic-settings>=2.0.0"
+    - "python-multipart>=0.0.6"
+    - "python-jose[cryptography]>=3.3.0"
+    - "passlib[bcrypt]>=1.7.4"
+    - "sqlalchemy>=2.0.0"
+    - "alembic>=1.12.0"
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-asyncio>=0.21.0"
+    - "httpx>=0.24.0"
+    - "pytest-cov>=4.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+
+files:
+  generate:
+    - path: "{{package_name}}/main.py"
+      template: "main.py.j2"
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/api/__init__.py"
+      content: ""
+    - path: "{{package_name}}/api/routes/__init__.py"
+      content: ""
+    - path: "{{package_name}}/api/routes/auth.py"
+      template: "api/routes/auth.py.j2"
+    - path: "{{package_name}}/api/routes/users.py"
+      template: "api/routes/users.py.j2"
+    - path: "{{package_name}}/core/config.py"
+      template: "core/config.py.j2"
+    - path: "{{package_name}}/core/security.py"
+      template: "core/security.py.j2"
+    - path: "{{package_name}}/models/__init__.py"
+      content: ""
+    - path: "{{package_name}}/models/user.py"
+      template: "models/user.py.j2"
+    - path: "{{package_name}}/schemas/__init__.py"
+      content: ""
+    - path: "{{package_name}}/schemas/user.py"
+      template: "schemas/user.py.j2"
+    - path: "tests/test_main.py"
+      template: "test_main.py.j2"
+    - path: "tests/test_auth.py"
+      template: "test_auth.py.j2"
+    - path: "tests/__init__.py"
+      content: ""
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+    - path: "Dockerfile"
+      template: "Dockerfile.j2"
+    - path: "docker-compose.yml"
+      template: "docker-compose.yml.j2"
+  
+  copy:
+    - "static/"
+    - "docs/"
+    - "migrations/"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating FastAPI web application...'"
+  post_generate:
+    - "echo 'FastAPI application generated successfully!'"
+    - "echo 'Run: {{backend}} sync && {{backend}} run'"
+    - "echo 'API docs: http://localhost:8000/docs'"
+
+ci_cd:
+  github_actions:
+    workflows:
+      - "test.yml"
+      - "lint.yml"
+      - "security.yml"
+      - "deploy.yml"
+  pre_commit:
+    hooks:
+      - "black"
+      - "ruff"
+      - "mypy"
+      - "pytest"
+      - "safety"
+
+docker:
+  enabled: true
+  base_image: "python:3.11-slim"
+  port: 8000
+  health_check: "/health"
+
+prompts:
+  - name: "database_type"
+    description: "Choose database type"
+    type: "choice"
+    choices: ["sqlite", "postgresql", "mysql"]
+    default: "sqlite"
+  - name: "include_auth"
+    description: "Include JWT authentication?"
+    type: "boolean"
+    default: true
+  - name: "include_cors"
+    description: "Enable CORS middleware?"
+    type: "boolean"
+    default: true
+  - name: "api_version"
+    description: "API version prefix"
+    type: "string"
+    default: "v1"
+  - name: "include_rate_limiting"
+    description: "Include rate limiting?"
+    type: "boolean"
+    default: false 

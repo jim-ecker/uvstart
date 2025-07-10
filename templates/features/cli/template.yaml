@@ -1,0 +1,91 @@
+metadata:
+  name: "cli"
+  description: "Modern CLI application with argument parsing, subcommands, and comprehensive testing"
+  category: "application"
+  version: "2.0.0"
+  author: "uvstart"
+  tags: ["cli", "argparse", "command-line", "application"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]  # Supported backends
+  features: ["cli", "testing", "logging"]
+  min_python: "3.8"
+  includes_ci: true
+  includes_docker: false
+  includes_tests: true
+
+inheritance:
+  extends: "python-project"  # Inherit from base template
+  override_sections:
+    - "requirements.dependencies"  # Override with CLI-specific deps
+    - "files.generate"  # Add CLI-specific files
+
+requirements:
+  dependencies:
+    - "click>=8.0"
+    - "rich>=13.0"
+    - "typer>=0.9.0"
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-cov>=4.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+
+files:
+  generate:
+    # Generated files with templates
+    - path: "{{package_name}}/main.py"
+      template: "main.py.j2"
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/cli.py"
+      template: "cli.py.j2"
+    - path: "tests/test_main.py"
+      template: "test_main.py.j2"
+    - path: "tests/__init__.py"
+      content: ""
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+  
+  copy:
+    # Static files to copy as-is
+    - "config/"
+    - "docs/"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating CLI application...'"
+  post_generate:
+    - "echo 'CLI application generated successfully!'"
+    - "echo 'Run: {{backend}} sync && {{backend}} run --help'"
+
+ci_cd:
+  github_actions:
+    workflows:
+      - "test.yml"
+      - "lint.yml"
+      - "release.yml"
+  pre_commit:
+    hooks:
+      - "black"
+      - "ruff"
+      - "mypy"
+      - "pytest"
+
+prompts:
+  # Interactive prompts for customization
+  - name: "cli_framework"
+    description: "Choose CLI framework"
+    type: "choice"
+    choices: ["argparse", "click", "typer"]
+    default: "typer"
+  - name: "include_config"
+    description: "Include configuration file support?"
+    type: "boolean"
+    default: true
+  - name: "logging_level"
+    description: "Default logging level"
+    type: "choice"
+    choices: ["DEBUG", "INFO", "WARNING", "ERROR"]
+    default: "INFO" 

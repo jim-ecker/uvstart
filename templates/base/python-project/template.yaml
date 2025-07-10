@@ -1,0 +1,94 @@
+metadata:
+  name: "python-project"
+  description: "Base Python project template with modern tooling and best practices"
+  category: "base"
+  version: "1.0.0"
+  author: "uvstart"
+  tags: ["base", "python", "project-template"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]
+  features: ["python", "testing", "linting", "formatting"]
+  min_python: "3.8"
+  includes_ci: false
+  includes_docker: false
+  includes_tests: true
+  is_base_template: true
+
+requirements:
+  dependencies: []
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-cov>=4.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+
+files:
+  generate:
+    # Core project structure
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/main.py"
+      template: "main.py.j2"
+    - path: "{{package_name}}/config.py"
+      template: "config.py.j2"
+    
+    # Testing
+    - path: "tests/__init__.py"
+      content: ""
+    - path: "tests/test_main.py"
+      template: "test_main.py.j2"
+    - path: "tests/conftest.py"
+      template: "conftest.py.j2"
+    
+    # Configuration files
+    - path: "pyproject.toml"
+      template: "pyproject.toml.j2"
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+    - path: "LICENSE"
+      template: "LICENSE.j2"
+    
+    # Code quality configuration
+    - path: ".ruff.toml"
+      template: "ruff.toml.j2"
+    - path: "mypy.ini"
+      template: "mypy.ini.j2"
+
+inheritance:
+  # Define what can be extended
+  extendable_sections:
+    - "requirements.dependencies"
+    - "requirements.dev_dependencies"
+    - "files.generate"
+    - "ci_cd.github_actions.workflows"
+    - "ci_cd.pre_commit.hooks"
+  
+  # Define merge strategies
+  merge_strategies:
+    "requirements.dependencies": "append"
+    "requirements.dev_dependencies": "append"
+    "files.generate": "append"
+    "ci_cd.github_actions.workflows": "append"
+    "ci_cd.pre_commit.hooks": "append"
+    "metadata.tags": "append"
+    "metadata.features": "append"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating base Python project...'"
+  post_generate:
+    - "echo 'Base Python project generated successfully!'"
+
+ci_cd:
+  github_actions:
+    workflows: []
+  pre_commit:
+    hooks:
+      - "black"
+      - "ruff"
+      - "mypy"
+      - "pytest"
+
+prompts: [] 

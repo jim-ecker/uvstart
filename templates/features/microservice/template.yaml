@@ -1,0 +1,244 @@
+metadata:
+  name: "microservice"
+  description: "Cloud-native microservice with FastAPI, Docker, Kubernetes, observability, and comprehensive monitoring"
+  category: "cloud-native"
+  version: "1.0.0"
+  author: "uvstart"
+  tags: ["microservice", "fastapi", "docker", "kubernetes", "observability", "cloud-native"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]
+  features: ["fastapi", "microservice", "docker", "kubernetes", "monitoring", "logging"]
+  min_python: "3.9"
+  includes_ci: true
+  includes_docker: true
+  includes_tests: true
+
+requirements:
+  dependencies:
+    # Core web framework
+    - "fastapi>=0.100.0"
+    - "uvicorn[standard]>=0.23.0"
+    - "pydantic>=2.0.0"
+    - "pydantic-settings>=2.0.0"
+    
+    # Database and async support
+    - "asyncpg>=0.28.0"
+    - "sqlalchemy[asyncio]>=2.0.0"
+    - "alembic>=1.12.0"
+    
+    # HTTP client
+    - "httpx>=0.24.0"
+    - "aioredis>=2.0.0"
+    
+    # Observability and monitoring
+    - "prometheus-client>=0.17.0"
+    - "prometheus-fastapi-instrumentator>=6.1.0"
+    - "opentelemetry-api>=1.20.0"
+    - "opentelemetry-sdk>=1.20.0"
+    - "opentelemetry-auto-instrumentation>=0.41b0"
+    - "opentelemetry-exporter-jaeger>=1.20.0"
+    
+    # Logging and structured logging
+    - "structlog>=23.0.0"
+    - "python-json-logger>=2.0.0"
+    
+    # Health checks and lifecycle
+    - "dependency-injector>=4.41.0"
+    - "tenacity>=8.2.0"
+    
+    # Security
+    - "python-jose[cryptography]>=3.3.0"
+    - "passlib[bcrypt]>=1.7.4"
+    
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-asyncio>=0.21.0"
+    - "pytest-cov>=4.0"
+    - "httpx>=0.24.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+    - "testcontainers>=3.7.0"
+
+files:
+  generate:
+    # Application core
+    - path: "{{package_name}}/main.py"
+      template: "main.py.j2"
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/config.py"
+      template: "config.py.j2"
+    
+    # API structure
+    - path: "{{package_name}}/api/__init__.py"
+      content: ""
+    - path: "{{package_name}}/api/v1/__init__.py"
+      content: ""
+    - path: "{{package_name}}/api/v1/routes/__init__.py"
+      content: ""
+    - path: "{{package_name}}/api/v1/routes/health.py"
+      template: "api/v1/routes/health.py.j2"
+    - path: "{{package_name}}/api/v1/routes/metrics.py"
+      template: "api/v1/routes/metrics.py.j2"
+    - path: "{{package_name}}/api/dependencies.py"
+      template: "api/dependencies.py.j2"
+    
+    # Core business logic
+    - path: "{{package_name}}/core/__init__.py"
+      content: ""
+    - path: "{{package_name}}/core/container.py"
+      template: "core/container.py.j2"
+    - path: "{{package_name}}/core/logging.py"
+      template: "core/logging.py.j2"
+    - path: "{{package_name}}/core/metrics.py"
+      template: "core/metrics.py.j2"
+    - path: "{{package_name}}/core/tracing.py"
+      template: "core/tracing.py.j2"
+    
+    # Database
+    - path: "{{package_name}}/db/__init__.py"
+      content: ""
+    - path: "{{package_name}}/db/database.py"
+      template: "db/database.py.j2"
+    - path: "{{package_name}}/db/base.py"
+      template: "db/base.py.j2"
+    - path: "{{package_name}}/models/__init__.py"
+      content: ""
+    - path: "{{package_name}}/schemas/__init__.py"
+      content: ""
+    
+    # Services
+    - path: "{{package_name}}/services/__init__.py"
+      content: ""
+    - path: "{{package_name}}/services/example_service.py"
+      template: "services/example_service.py.j2"
+    
+    # Docker and deployment
+    - path: "Dockerfile"
+      template: "Dockerfile.j2"
+    - path: "docker-compose.yml"
+      template: "docker-compose.yml.j2"
+    - path: "docker-compose.override.yml"
+      template: "docker-compose.override.yml.j2"
+    
+    # Kubernetes manifests
+    - path: "k8s/namespace.yaml"
+      template: "k8s/namespace.yaml.j2"
+    - path: "k8s/deployment.yaml"
+      template: "k8s/deployment.yaml.j2"
+    - path: "k8s/service.yaml"
+      template: "k8s/service.yaml.j2"
+    - path: "k8s/configmap.yaml"
+      template: "k8s/configmap.yaml.j2"
+    - path: "k8s/secret.yaml"
+      template: "k8s/secret.yaml.j2"
+    - path: "k8s/ingress.yaml"
+      template: "k8s/ingress.yaml.j2"
+    - path: "k8s/hpa.yaml"
+      template: "k8s/hpa.yaml.j2"
+    
+    # Observability configuration
+    - path: "monitoring/prometheus.yml"
+      template: "monitoring/prometheus.yml.j2"
+    - path: "monitoring/grafana-dashboard.json"
+      template: "monitoring/grafana-dashboard.json.j2"
+    
+    # Testing
+    - path: "tests/conftest.py"
+      template: "tests/conftest.py.j2"
+    - path: "tests/test_main.py"
+      template: "tests/test_main.py.j2"
+    - path: "tests/test_health.py"
+      template: "tests/test_health.py.j2"
+    - path: "tests/__init__.py"
+      content: ""
+    
+    # Database migrations
+    - path: "alembic.ini"
+      template: "alembic.ini.j2"
+    - path: "alembic/env.py"
+      template: "alembic/env.py.j2"
+    - path: "alembic/script.py.mako"
+      template: "alembic/script.py.mako.j2"
+    
+    # Documentation and configuration
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+    - path: ".env.example"
+      template: "env.example.j2"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating cloud-native microservice...'"
+  post_generate:
+    - "echo 'Microservice generated successfully!'"
+    - "echo 'Next steps:'"
+    - "echo '1. {{backend}} sync'"
+    - "echo '2. docker-compose up -d'"
+    - "echo '3. Visit http://localhost:8000/docs'"
+    - "echo '4. Check health: http://localhost:8000/health'"
+    - "echo '5. View metrics: http://localhost:8000/metrics'"
+
+ci_cd:
+  github_actions:
+    workflows:
+      - "test.yml"
+      - "lint.yml"
+      - "security.yml"
+      - "build-docker.yml"
+      - "deploy-k8s.yml"
+  pre_commit:
+    hooks:
+      - "black"
+      - "ruff"
+      - "mypy"
+      - "pytest"
+      - "safety"
+      - "hadolint"
+
+docker:
+  enabled: true
+  base_image: "python:3.11-slim"
+  port: 8000
+  health_check: "/health"
+  multi_stage: true
+
+kubernetes:
+  enabled: true
+  namespace: "{{project_name}}"
+  service_type: "ClusterIP"
+  ingress_enabled: true
+  hpa_enabled: true
+  monitoring_enabled: true
+
+prompts:
+  - name: "database_type"
+    description: "Choose database type"
+    type: "choice"
+    choices: ["postgresql", "mysql", "sqlite"]
+    default: "postgresql"
+  - name: "cache_backend"
+    description: "Choose cache backend"
+    type: "choice"
+    choices: ["redis", "memcached", "none"]
+    default: "redis"
+  - name: "message_queue"
+    description: "Include message queue?"
+    type: "choice"
+    choices: ["rabbitmq", "kafka", "redis", "none"]
+    default: "none"
+  - name: "enable_tracing"
+    description: "Enable distributed tracing?"
+    type: "boolean"
+    default: true
+  - name: "enable_metrics"
+    description: "Enable Prometheus metrics?"
+    type: "boolean"
+    default: true
+  - name: "auth_method"
+    description: "Authentication method"
+    type: "choice"
+    choices: ["jwt", "oauth2", "basic", "none"]
+    default: "jwt" 

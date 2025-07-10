@@ -1,27 +1,8 @@
-PYTHON_VERSION ?= {{PYTHON_VERSION}}
+# uvstart project with poetry backend
+# Backend-agnostic Makefile using shared abstraction layer
 
-.PHONY: init install run add clean notebook kernel
+PYTHON_VERSION := {{PYTHON_VERSION}}
+PROJECT_NAME := {{PROJECT_NAME}}
 
-init:
-	poetry init --name {{PROJECT_NAME}} --python "^$(PYTHON_VERSION)" --no-interaction
-
-install:
-	poetry install
-
-add:
-	@read -p "Enter packages to add: " pkgs; \
-	poetry add $$pkgs
-
-run:
-	poetry run python main.py
-
-clean:
-	rm -rf .venv poetry.lock
-
-notebook:
-	poetry run jupyter notebook
-
-kernel:
-	poetry run python -m ipykernel install --user --name="{{PROJECT_NAME}" --display-name="{{PROJECT_NAME}}"
-
-include apply_template.mk
+# Include the shared backend-agnostic Makefile
+include $(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))/../core/shared.makefile 

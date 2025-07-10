@@ -1,0 +1,179 @@
+{
+	"name": "{{ project_name_title }} Development",
+	"dockerComposeFile": "docker-compose.dev.yml",
+	"service": "dev",
+	"workspaceFolder": "/workspace",
+	
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": true,
+			"installOhMyZsh": true,
+			"upgradePackages": true,
+			"username": "vscode",
+			"userUid": "1000",
+			"userGid": "1000"
+		},
+		"ghcr.io/devcontainers/features/python:1": {
+			"version": "{{ python_version }}",
+			"installTools": true,
+			"optimize": true
+		},
+		"ghcr.io/devcontainers/features/git:1": {
+			"ppa": true,
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers/features/github-cli:1": {
+			"version": "latest"
+		},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {
+			"version": "latest",
+			"enableNonRootDocker": "true",
+			"moby": "true"
+		}{% if has_notebook %},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "lts",
+			"nodeGypDependencies": true
+		}{% endif %}
+	},
+
+	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": "/usr/local/bin/python",
+				"python.linting.enabled": true,
+				"python.linting.pylintEnabled": false,
+				"python.linting.flake8Enabled": false,
+				"python.linting.mypyEnabled": true,
+				"python.formatting.provider": "black",
+				"python.formatting.blackArgs": ["--line-length", "88"],
+				"python.sortImports.args": ["--profile", "black"],
+				"python.testing.pytestEnabled": true,
+				"python.testing.unittestEnabled": false,
+				"python.testing.pytestArgs": ["tests"],
+				
+				"editor.formatOnSave": true,
+				"editor.codeActionsOnSave": {
+					"source.organizeImports": true,
+					"source.fixAll": true
+				},
+				"editor.rulers": [88],
+				"files.trimTrailingWhitespace": true,
+				"files.insertFinalNewline": true,
+				
+				"git.autofetch": true,
+				"git.enableSmartCommit": true,
+				"git.confirmSync": false,
+				
+				"terminal.integrated.defaultProfile.linux": "zsh",
+				"terminal.integrated.fontSize": 14,
+				
+				{% if has_notebook %}
+				"jupyter.askForKernelRestart": false,
+				"jupyter.interactiveWindowMode": "perFile",
+				{% endif %}
+				
+				"files.associations": {
+					"*.yaml": "yaml",
+					"*.yml": "yaml",
+					"Dockerfile*": "dockerfile",
+					".env*": "properties"
+				}
+			},
+			
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter",
+				"ms-python.isort",
+				"ms-python.mypy-type-checker",
+				"ms-python.flake8",
+				"ms-python.pytest",
+				"ms-vscode.test-adapter-converter",
+				"hbenl.vscode-test-explorer",
+				"eamodio.gitlens",
+				"github.vscode-pull-request-github",
+				"github.copilot",
+				"github.copilot-chat",
+				"esbenp.prettier-vscode",
+				"ms-vscode.vscode-json",
+				"redhat.vscode-yaml",
+				"ms-vscode.makefile-tools",
+				"ms-azuretools.vscode-docker",
+				"ms-kubernetes-tools.vscode-kubernetes-tools"{% if has_notebook %},
+				"ms-toolsai.jupyter",
+				"ms-toolsai.jupyter-keymap",
+				"ms-toolsai.jupyter-renderers",
+				"ms-toolsai.vscode-jupyter-cell-tags",
+				"ms-toolsai.vscode-jupyter-slideshow"{% endif %}{% if has_web or has_fastapi %},
+				"ms-vscode.vscode-typescript-next",
+				"bradlc.vscode-tailwindcss",
+				"ms-vscode.vscode-html-language-features"{% endif %},
+				"ms-vscode.remote-containers",
+				"ms-vscode-remote.remote-ssh",
+				"streetsidesoftware.code-spell-checker",
+				"ms-vscode.wordcount",
+				"alefragnani.bookmarks",
+				"gruntfuggly.todo-tree",
+				"ms-vscode.hexeditor",
+				"github.github-vscode-theme",
+				"pkief.material-icon-theme",
+				"ms-vscode.theme-tomorrowkit"
+			]
+		}
+	},
+
+	"forwardPorts": [
+		{% set ports = [] %}
+		{% if has_web or has_fastapi %}{% set _ = ports.append(8000) %}{% endif %}
+		{% if has_notebook %}{% set _ = ports.append(8888) %}{% endif %}
+		{% if enable_monitoring %}{% set _ = ports.extend([9090, 3000]) %}{% endif %}
+		{{ ports | join(', ') }}
+	],
+
+	"portsAttributes": {
+		{% if has_web or has_fastapi %}
+		"8000": {
+			"label": "{{ project_name_title }} API",
+			"onAutoForward": "notify"
+		}{% if has_notebook or enable_monitoring %},{% endif %}
+		{% endif %}
+		{% if has_notebook %}
+		"8888": {
+			"label": "Jupyter Lab",
+			"onAutoForward": "openBrowser"
+		}{% if enable_monitoring %},{% endif %}
+		{% endif %}
+		{% if enable_monitoring %}
+		"9090": {
+			"label": "Prometheus",
+			"onAutoForward": "ignore"
+		},
+		"3000": {
+			"label": "Grafana",
+			"onAutoForward": "ignore"
+		}
+		{% endif %}
+	},
+
+	"postCreateCommand": "bash .devcontainer/post-create.sh",
+	"postStartCommand": "bash .devcontainer/post-start.sh",
+
+	"mounts": [
+		"source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
+	],
+
+	"containerEnv": {
+		"PYTHONPATH": "/workspace",
+		"PYTHONDONTWRITEBYTECODE": "1",
+		"PYTHONUNBUFFERED": "1",
+		"DEVELOPMENT": "true",
+		"DEBUG": "true"
+	},
+
+	{% if has_pytorch or 'gpu' in features %}
+	"runArgs": ["--gpus", "all"],
+	{% endif %}
+
+	"remoteUser": "vscode"
+} 

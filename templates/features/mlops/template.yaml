@@ -1,0 +1,305 @@
+metadata:
+  name: "mlops"
+  description: "Complete MLOps platform with model training, versioning, deployment, monitoring, and automated ML pipelines"
+  category: "machine-learning"
+  version: "1.0.0"
+  author: "uvstart"
+  tags: ["mlops", "machine-learning", "deployment", "monitoring", "mlflow", "kubeflow"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]
+  features: ["mlops", "fastapi", "docker", "model-deployment", "monitoring"]
+  min_python: "3.9"
+  includes_ci: true
+  includes_docker: true
+  includes_tests: true
+
+requirements:
+  dependencies:
+    # Core ML libraries
+    - "scikit-learn>=1.3.0"
+    - "pandas>=2.0.0"
+    - "numpy>=1.24.0"
+    
+    # ML experiment tracking and model management
+    - "mlflow>=2.8.0"
+    - "optuna>=3.4.0"
+    - "wandb>=0.16.0"
+    
+    # Model serving and API
+    - "fastapi>=0.100.0"
+    - "uvicorn[standard]>=0.23.0"
+    - "pydantic>=2.0.0"
+    - "bentoml>=1.1.0"
+    
+    # Data processing and validation
+    - "great-expectations>=0.17.0"
+    - "evidently>=0.4.0"
+    - "deepdiff>=6.6.0"
+    
+    # Model monitoring and observability
+    - "prometheus-client>=0.17.0"
+    - "structlog>=23.0.0"
+    
+    # Storage and data connectors
+    - "boto3>=1.34.0"
+    - "azure-storage-blob>=12.19.0"
+    - "google-cloud-storage>=2.10.0"
+    - "sqlalchemy>=2.0.0"
+    
+    # Workflow orchestration
+    - "prefect>=2.14.0"
+    - "dvc[s3]>=3.32.0"
+    
+    # Feature store
+    - "feast>=0.32.0"
+    
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-cov>=4.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+    - "jupyter>=1.0.0"
+    - "jupyterlab>=4.0.0"
+
+files:
+  generate:
+    # Project structure
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/config.py"
+      template: "config.py.j2"
+    
+    # Data processing
+    - path: "{{package_name}}/data/__init__.py"
+      content: ""
+    - path: "{{package_name}}/data/ingestion.py"
+      template: "data/ingestion.py.j2"
+    - path: "{{package_name}}/data/validation.py"
+      template: "data/validation.py.j2"
+    - path: "{{package_name}}/data/preprocessing.py"
+      template: "data/preprocessing.py.j2"
+    
+    # Feature engineering
+    - path: "{{package_name}}/features/__init__.py"
+      content: ""
+    - path: "{{package_name}}/features/feature_store.py"
+      template: "features/feature_store.py.j2"
+    - path: "{{package_name}}/features/transformers.py"
+      template: "features/transformers.py.j2"
+    
+    # Model training and experimentation
+    - path: "{{package_name}}/models/__init__.py"
+      content: ""
+    - path: "{{package_name}}/models/base_model.py"
+      template: "models/base_model.py.j2"
+    - path: "{{package_name}}/models/train.py"
+      template: "models/train.py.j2"
+    - path: "{{package_name}}/models/evaluate.py"
+      template: "models/evaluate.py.j2"
+    - path: "{{package_name}}/models/hyperparameter_tuning.py"
+      template: "models/hyperparameter_tuning.py.j2"
+    
+    # Model serving and deployment
+    - path: "{{package_name}}/serving/__init__.py"
+      content: ""
+    - path: "{{package_name}}/serving/api.py"
+      template: "serving/api.py.j2"
+    - path: "{{package_name}}/serving/model_loader.py"
+      template: "serving/model_loader.py.j2"
+    - path: "{{package_name}}/serving/predictor.py"
+      template: "serving/predictor.py.j2"
+    
+    # Monitoring and observability
+    - path: "{{package_name}}/monitoring/__init__.py"
+      content: ""
+    - path: "{{package_name}}/monitoring/model_monitor.py"
+      template: "monitoring/model_monitor.py.j2"
+    - path: "{{package_name}}/monitoring/data_drift.py"
+      template: "monitoring/data_drift.py.j2"
+    - path: "{{package_name}}/monitoring/performance_tracker.py"
+      template: "monitoring/performance_tracker.py.j2"
+    
+    # Pipelines and workflows
+    - path: "{{package_name}}/pipelines/__init__.py"
+      content: ""
+    - path: "{{package_name}}/pipelines/training_pipeline.py"
+      template: "pipelines/training_pipeline.py.j2"
+    - path: "{{package_name}}/pipelines/inference_pipeline.py"
+      template: "pipelines/inference_pipeline.py.j2"
+    - path: "{{package_name}}/pipelines/batch_prediction.py"
+      template: "pipelines/batch_prediction.py.j2"
+    
+    # Scripts and CLI
+    - path: "scripts/train_model.py"
+      template: "scripts/train_model.py.j2"
+    - path: "scripts/deploy_model.py"
+      template: "scripts/deploy_model.py.j2"
+    - path: "scripts/batch_predict.py"
+      template: "scripts/batch_predict.py.j2"
+    
+    # Configuration files
+    - path: "mlflow.yml"
+      template: "mlflow.yml.j2"
+    - path: "dvc.yaml"
+      template: "dvc.yaml.j2"
+    - path: "prefect.yaml"
+      template: "prefect.yaml.j2"
+    - path: "feast_feature_store.yaml"
+      template: "feast_feature_store.yaml.j2"
+    
+    # Docker and deployment
+    - path: "Dockerfile.training"
+      template: "Dockerfile.training.j2"
+    - path: "Dockerfile.serving"
+      template: "Dockerfile.serving.j2"
+    - path: "docker-compose.ml.yml"
+      template: "docker-compose.ml.yml.j2"
+    
+    # Kubernetes manifests
+    - path: "k8s/ml-training-job.yaml"
+      template: "k8s/ml-training-job.yaml.j2"
+    - path: "k8s/ml-serving-deployment.yaml"
+      template: "k8s/ml-serving-deployment.yaml.j2"
+    - path: "k8s/model-monitoring.yaml"
+      template: "k8s/model-monitoring.yaml.j2"
+    
+    # Monitoring and observability
+    - path: "monitoring/grafana-ml-dashboard.json"
+      template: "monitoring/grafana-ml-dashboard.json.j2"
+    - path: "monitoring/prometheus-ml-rules.yml"
+      template: "monitoring/prometheus-ml-rules.yml.j2"
+    
+    # Notebooks for experimentation
+    - path: "notebooks/01_data_exploration.ipynb"
+      template: "notebooks/01_data_exploration.ipynb.j2"
+    - path: "notebooks/02_feature_engineering.ipynb"
+      template: "notebooks/02_feature_engineering.ipynb.j2"
+    - path: "notebooks/03_model_training.ipynb"
+      template: "notebooks/03_model_training.ipynb.j2"
+    - path: "notebooks/04_model_evaluation.ipynb"
+      template: "notebooks/04_model_evaluation.ipynb.j2"
+    
+    # Data directories
+    - path: "data/raw/.gitkeep"
+      content: ""
+    - path: "data/processed/.gitkeep"
+      content: ""
+    - path: "data/external/.gitkeep"
+      content: ""
+    - path: "models/.gitkeep"
+      content: ""
+    - path: "experiments/.gitkeep"
+      content: ""
+    
+    # Testing
+    - path: "tests/test_data_processing.py"
+      template: "tests/test_data_processing.py.j2"
+    - path: "tests/test_model_training.py"
+      template: "tests/test_model_training.py.j2"
+    - path: "tests/test_serving_api.py"
+      template: "tests/test_serving_api.py.j2"
+    - path: "tests/__init__.py"
+      content: ""
+    
+    # Documentation
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: "docs/model_card.md"
+      template: "docs/model_card.md.j2"
+    - path: "docs/deployment_guide.md"
+      template: "docs/deployment_guide.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+    - path: ".env.example"
+      template: "env.example.j2"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating MLOps platform...'"
+  post_generate:
+    - "echo 'MLOps platform generated successfully!'"
+    - "echo 'Next steps:'"
+    - "echo '1. {{backend}} sync'"
+    - "echo '2. Initialize DVC: dvc init'"
+    - "echo '3. Start MLflow: mlflow ui'"
+    - "echo '4. Train model: python scripts/train_model.py'"
+    - "echo '5. Deploy model: python scripts/deploy_model.py'"
+
+ci_cd:
+  github_actions:
+    workflows:
+      - "test.yml"
+      - "lint.yml"
+      - "security.yml"
+      - "ml-training.yml"
+      - "ml-deployment.yml"
+      - "model-validation.yml"
+  pre_commit:
+    hooks:
+      - "black"
+      - "ruff"
+      - "mypy"
+      - "pytest"
+      - "nbstripout"
+      - "great-expectations"
+
+docker:
+  enabled: true
+  multi_stage: true
+  services:
+    - name: "training"
+      dockerfile: "Dockerfile.training"
+      port: null
+    - name: "serving"
+      dockerfile: "Dockerfile.serving"
+      port: 8000
+
+kubernetes:
+  enabled: true
+  jobs:
+    - "ml-training-job"
+  deployments:
+    - "ml-serving-deployment"
+  monitoring:
+    - "model-monitoring"
+
+mlflow:
+  enabled: true
+  tracking_uri: "sqlite:///mlflow.db"
+  artifact_root: "./mlruns"
+  experiment_name: "{{project_name}}"
+
+prompts:
+  - name: "ml_problem_type"
+    description: "What type of ML problem?"
+    type: "choice"
+    choices: ["classification", "regression", "clustering", "nlp", "computer-vision"]
+    default: "classification"
+  - name: "data_source"
+    description: "Primary data source"
+    type: "choice"
+    choices: ["csv", "database", "s3", "gcs", "azure-blob", "api"]
+    default: "csv"
+  - name: "model_framework"
+    description: "Preferred ML framework"
+    type: "choice"
+    choices: ["scikit-learn", "xgboost", "lightgbm", "pytorch", "tensorflow"]
+    default: "scikit-learn"
+  - name: "deployment_target"
+    description: "Deployment target"
+    type: "choice"
+    choices: ["local", "docker", "kubernetes", "cloud", "edge"]
+    default: "docker"
+  - name: "enable_monitoring"
+    description: "Enable model monitoring and drift detection?"
+    type: "boolean"
+    default: true
+  - name: "feature_store"
+    description: "Use feature store (Feast)?"
+    type: "boolean"
+    default: false
+  - name: "experiment_tracking"
+    description: "Experiment tracking platform"
+    type: "choice"
+    choices: ["mlflow", "wandb", "both"]
+    default: "mlflow" 

@@ -1,0 +1,134 @@
+metadata:
+  name: "notebook"
+  description: "Data science project with Jupyter notebooks, pandas, visualization, and ML tools"
+  category: "data-science"
+  version: "2.0.0"
+  author: "uvstart"
+  tags: ["jupyter", "data-science", "pandas", "visualization", "machine-learning"]
+  dependencies: ["uv", "poetry", "pdm", "rye", "hatch"]
+  features: ["notebook", "data-science", "visualization", "jupyter"]
+  min_python: "3.8"
+  includes_ci: true
+  includes_docker: true
+  includes_tests: true
+
+requirements:
+  dependencies:
+    - "jupyter>=1.0.0"
+    - "jupyterlab>=4.0.0"
+    - "pandas>=2.0.0"
+    - "numpy>=1.24.0"
+    - "matplotlib>=3.7.0"
+    - "seaborn>=0.12.0"
+    - "plotly>=5.15.0"
+    - "scikit-learn>=1.3.0"
+    - "scipy>=1.10.0"
+    - "ipywidgets>=8.0.0"
+  dev_dependencies:
+    - "pytest>=7.0"
+    - "pytest-cov>=4.0"
+    - "nbqa>=1.7.0"
+    - "nbstripout>=0.6.0"
+    - "black>=22.0"
+    - "ruff>=0.1.0"
+    - "mypy>=1.0"
+
+files:
+  generate:
+    - path: "{{package_name}}/__init__.py"
+      template: "__init__.py.j2"
+    - path: "{{package_name}}/data_loader.py"
+      template: "data_loader.py.j2"
+    - path: "{{package_name}}/analysis.py"
+      template: "analysis.py.j2"
+    - path: "{{package_name}}/visualization.py"
+      template: "visualization.py.j2"
+    - path: "notebooks/01_data_exploration.ipynb"
+      template: "notebooks/01_data_exploration.ipynb.j2"
+    - path: "notebooks/02_data_cleaning.ipynb"
+      template: "notebooks/02_data_cleaning.ipynb.j2"
+    - path: "notebooks/03_analysis.ipynb"
+      template: "notebooks/03_analysis.ipynb.j2"
+    - path: "data/raw/.gitkeep"
+      content: ""
+    - path: "data/processed/.gitkeep"
+      content: ""
+    - path: "data/external/.gitkeep"
+      content: ""
+    - path: "reports/figures/.gitkeep"
+      content: ""
+    - path: "reports/README.md"
+      template: "reports/README.md.j2"
+    - path: "tests/test_data_loader.py"
+      template: "test_data_loader.py.j2"
+    - path: "tests/__init__.py"
+      content: ""
+    - path: "README.md"
+      template: "README.md.j2"
+    - path: ".gitignore"
+      template: "gitignore.j2"
+    - path: "jupyter_config.py"
+      template: "jupyter_config.py.j2"
+  
+  copy:
+    - "sample_data/"
+    - "docs/"
+
+hooks:
+  pre_generate:
+    - "echo 'Generating data science project...'"
+  post_generate:
+    - "echo 'Data science project generated successfully!'"
+    - "echo 'Run: {{backend}} sync && jupyter lab'"
+    - "echo 'Setup Git hooks: nbstripout --install'"
+
+ci_cd:
+  github_actions:
+    workflows:
+      - "test.yml"
+      - "lint.yml"
+      - "notebook-check.yml"
+  pre_commit:
+    hooks:
+      - "nbstripout"
+      - "nbqa black"
+      - "nbqa ruff"
+      - "pytest"
+
+jupyter:
+  enabled: true
+  extensions:
+    - "jupyterlab-git"
+    - "jupyterlab-variableinspector"
+    - "jupyterlab-plotly"
+  kernel_name: "{{project_name}}"
+
+docker:
+  enabled: true
+  base_image: "jupyter/scipy-notebook:latest"
+  port: 8888
+
+prompts:
+  - name: "data_source"
+    description: "Primary data source type"
+    type: "choice"
+    choices: ["csv", "json", "database", "api", "parquet"]
+    default: "csv"
+  - name: "include_ml"
+    description: "Include machine learning libraries?"
+    type: "boolean"
+    default: true
+  - name: "visualization_library"
+    description: "Preferred visualization library"
+    type: "choice"
+    choices: ["matplotlib", "plotly", "both"]
+    default: "both"
+  - name: "include_stats"
+    description: "Include statistical analysis tools?"
+    type: "boolean"
+    default: true
+  - name: "project_type"
+    description: "Project type"
+    type: "choice"
+    choices: ["exploratory", "reporting", "modeling", "research"]
+    default: "exploratory" 

@@ -3,27 +3,62 @@ name: uvstart Test
 on: [push, pull_request]
 
 jobs:
-  scaffold:
+  engine-build:
+    name: Build C++ Engine
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential g++ make
+
+      - name: Build C++ engine
+        run: |
+          cd engine
+          make clean
+          make
+          test -x uvstart-engine
+
+      - name: Upload engine artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: uvstart-engine
+          path: engine/uvstart-engine
+
+  test-core:
+    name: Core Functionality Test
+    runs-on: ubuntu-latest
+    needs: engine-build
     strategy:
       matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
         backend: [uv, poetry]
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Make uvstart executable
-        run: chmod +x uvstart
+      - name: Download engine artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
 
       - name: Set up Git identity
         run: |
           git config --global user.name "uvstart-bot"
           git config --global user.email "uvstart@users.noreply.github.com"
 
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install backend (${{ matrix.backend }})
         run: |
@@ -35,11 +70,135 @@ jobs:
             echo "$HOME/.local/bin" >> $GITHUB_PATH
           fi
 
-      - name: Create test project
+      - name: Run basic test suite
+        run: |
+          chmod +x test_uvstart.sh
+          ./test_uvstart.sh
+
+      - name: Test project creation
         run: |
           mkdir test_project
           cd test_project
-          ../uvstart init 3.12 --backend ${{ matrix.backend }}
+          ../uvstart init ${{ matrix.python-version }} --backend ${{ matrix.backend }}
           test -f Makefile
           test -f main.py
           test -f pyproject.toml
+
+      - name: Test template system
+        run: |
+          ./uvstart template list
+          ./uvstart template presets
+
+  test-templates:
+    name: Template System Test
+    runs-on: ubuntu-latest
+    needs: engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-bot"
+          git config --global user.email "uvstart@users.noreply.github.com"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Test built-in templates
+        run: |
+          for template in web cli notebook pytorch; do
+            echo "Testing template: $template"
+            mkdir "test_${template}"
+            cd "test_${template}"
+            ../uvstart init 3.12 --backend uv --template $template
+            test -f Makefile
+            test -f pyproject.toml
+            cd ..
+          done
+
+      - name: Test quick template presets
+        run: |
+          mkdir test_quick
+          cd test_quick
+          ../uvstart template quick test-api api
+          ../uvstart generate api-test test-api
+          test -d api-test
+          cd ..
+
+      - name: Test directory template generation
+        run: |
+          mkdir test_dir_template
+          cd test_dir_template
+          echo "print('hello')" > main.py
+          echo "requests>=2.0" > requirements.txt
+          ../uvstart template from-directory my-test-template
+          test -f ../templates/features/my-test-template/template.yaml
+          cd ..
+
+  test-advanced:
+    name: Advanced Features Test
+    runs-on: ubuntu-latest
+    needs: engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Test doctor command
+        run: |
+          ./uvstart doctor
+
+      - name: Test backend detection
+        run: |
+          mkdir test_detection
+          cd test_detection
+          ../uvstart init 3.12 --backend uv
+          backend=$(../uvstart info | grep "Backend:" | cut -d: -f2 | xargs)
+          test "$backend" = "uv"
+          cd ..
+
+      - name: Test dependency management
+        run: |
+          mkdir test_deps
+          cd test_deps
+          ../uvstart init 3.12 --backend uv
+          ../uvstart add requests
+          grep -q "requests" pyproject.toml
+          cd ..

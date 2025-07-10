@@ -1,3 +1,46 @@
-# Ensure notebooks are normalized with Git
-*.ipynb filter=strip-notebook-output
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Ensure shell scripts have LF line endings
+*.sh text eol=lf
+*.bash text eol=lf
+
+# Ensure Python files have LF line endings
+*.py text eol=lf
+
+# Jupyter notebooks - use LF and clean on commit
+*.ipynb text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.rst text eol=lf
+*.txt text eol=lf
+
+# Configuration files
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.ini text eol=lf
+*.cfg text eol=lf
+
+# Make files
+Makefile text eol=lf
+justfile text eol=lf
+*.mk text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.whl binary
+
+# Python bytecode
+*.pyc binary
+*.pyo binary
 

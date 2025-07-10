@@ -1,0 +1,12 @@
+# Testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+
+# Code quality
+black>=23.0.0
+ruff>=0.1.0
+mypy>=1.0.0
+
+# CLI enhancements
+rich>=13.0.0
+click>=8.0.0 

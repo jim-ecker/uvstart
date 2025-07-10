@@ -2,31 +2,109 @@
 
 set -e
 
+# Color codes for better UX
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 
 COMMAND="$1"
 shift || true
 
+# Enhanced help function
+show_main_help() {
+    cat << EOF
+uvstart - Fast Python project initializer with hybrid architecture
+
+USAGE:
+    uvstart <command> [args]
+
+COMMANDS:
+    # Project management (hybrid Python + C++ system)
+    add        Add packages to the current project
+    remove     Remove packages from the current project
+    sync       Install/sync all dependencies
+    run        Run a command in the project environment
+    list       List installed packages
+    info       Show backend information
+    generate   Generate new project from templates
+    analyze    Analyze current project
+    init       Initialize a new Python project
+    doctor     Check environment health and dependencies
+    update     Update uvstart to the latest version
+    
+    help       Show this help message
+
+Run 'uvstart <command> --help' for command-specific options.
+
+EXAMPLES:
+    # Hybrid system commands (Python frontend + C++ engine)
+    uvstart init /path/to/project --backend uv --features cli
+    uvstart generate my-cli --features cli --backend uv
+    uvstart add requests pandas
+    uvstart sync --dev
+    uvstart analyze
+    uvstart info
+    uvstart doctor
+    uvstart update --check
+
+Architecture: Python frontend + C++ engine for performance + ecosystem richness
+EOF
+}
+
+# Check if hybrid system is available
+HYBRID_CLI="$SCRIPT_DIR/frontend/uvstart.py"
+if [[ ! -x "$HYBRID_CLI" ]]; then
+    echo -e "${RED}ERROR: Hybrid system not found at $HYBRID_CLI${NC}"
+    echo "Please ensure the C++ engine is built and Python frontend is available."
+    exit 1
+fi
+
 case "$COMMAND" in
-  init)
-    bash "$SCRIPT_DIR/scripts/init.sh" "$@"
+  # Hybrid system commands (Python frontend + C++ engine)
+  add|remove|sync|run|list|info|generate|analyze|install|init|doctor|update)
+    "$HYBRID_CLI" "$COMMAND" "$@"
     ;;
+  
+  # Add support for dev flag syntax
+  add-dev)
+    "$HYBRID_CLI" add --dev "$@"
+    ;;
+  
+  sync-dev)
+    "$HYBRID_CLI" sync --dev "$@"
+    ;;
+  
+  # Deprecated commands (removed - show helpful message)
   template)
-    bash "$SCRIPT_DIR/scripts/template.sh" "$@"
+    echo -e "${YELLOW}The 'template' command has been replaced by 'generate'${NC}"
+    echo "Try: uvstart generate <name> --features cli,web --backend uv"
+    echo "Run: uvstart generate --help"
     ;;
+  
+  version|--version|-V)
+    echo "uvstart version 2.0.0 (Hybrid Architecture)"
+    echo "Python frontend + C++ engine"
+    echo "Backends: PDM, uv, Poetry, Rye, Hatch"
+    ;;
+  
   help|-h|--help|"")
-    echo "Usage: uvstart <command> [args]"
-    echo
-    echo "Commands:"
-    echo "  init       Initialize a new Python project"
-    echo "  template   Apply or list project templates"
-    echo
-    echo "Run 'uvstart <command> --help' for command-specific options."
+    show_main_help
     ;;
+  
   *)
-    echo "Unknown command: $COMMAND"
-    echo "Run 'uvstart help' for usage."
+    echo -e "${RED}ERROR: Unknown command: $COMMAND${NC}"
+    echo
+    echo "Run 'uvstart help' for available commands."
+    echo
+    echo "Did you mean one of these?"
+    echo "  uvstart generate    (create new project)"
+    echo "  uvstart add         (add packages)"
+    echo "  uvstart info        (show backend info)"
     exit 1
     ;;
 esac

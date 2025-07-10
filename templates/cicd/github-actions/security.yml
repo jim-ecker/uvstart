@@ -1,0 +1,205 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run weekly security scans
+    - cron: '0 2 * * 1'
+
+jobs:
+  dependency-check:
+    runs-on: ubuntu-latest
+    name: Dependency Vulnerability Scan
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    {% if backend == "uv" %}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v2
+
+    - name: Install dependencies
+      run: uv sync
+    {% elif backend == "poetry" %}
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+
+    - name: Install dependencies
+      run: poetry install
+    {% else %}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit semgrep
+        pip install -e .
+    {% endif %}
+
+    - name: Run Safety (dependency vulnerability check)
+      run: |
+        {% if backend == "uv" %}
+        uv run safety check --json --output safety-report.json || true
+        {% elif backend == "poetry" %}
+        poetry run safety check --json --output safety-report.json || true
+        {% else %}
+        safety check --json --output safety-report.json || true
+        {% endif %}
+
+    - name: Upload Safety report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: safety-report
+        path: safety-report.json
+
+  bandit-scan:
+    runs-on: ubuntu-latest
+    name: Security Linting (Bandit)
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install Bandit
+      run: pip install bandit[toml]
+
+    - name: Run Bandit security scan
+      run: |
+        bandit -r {{ package_name }}/ -f json -o bandit-report.json || true
+        bandit -r {{ package_name }}/ -f txt || true
+
+    - name: Upload Bandit report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: bandit-report
+        path: bandit-report.json
+
+  semgrep-scan:
+    runs-on: ubuntu-latest
+    name: Static Analysis (Semgrep)
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Run Semgrep
+      uses: returntocorp/semgrep-action@v1
+      with:
+        config: >-
+          p/security-audit
+          p/secrets
+          p/python
+        generateSarif: "1"
+
+    - name: Upload SARIF file
+      uses: github/codeql-action/upload-sarif@v2
+      with:
+        sarif_file: semgrep.sarif
+      if: always()
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    name: Secret Detection
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: TruffleHog OSS
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+  codeql-analysis:
+    runs-on: ubuntu-latest
+    name: CodeQL Analysis
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: python
+
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+
+  license-check:
+    runs-on: ubuntu-latest
+    name: License Compliance
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    {% if backend == "uv" %}
+    - name: Install uv
+      uses: astral-sh/setup-uv@v2
+
+    - name: Install dependencies
+      run: uv sync
+
+    - name: Check licenses
+      run: |
+        uv run pip install pip-licenses
+        uv run pip-licenses --format=json --output-file=licenses.json
+        uv run pip-licenses --format=plain-vertical
+    {% elif backend == "poetry" %}
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+
+    - name: Install dependencies
+      run: poetry install
+
+    - name: Check licenses
+      run: |
+        poetry add --group dev pip-licenses
+        poetry run pip-licenses --format=json --output-file=licenses.json
+        poetry run pip-licenses --format=plain-vertical
+    {% else %}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pip-licenses
+        pip install -e .
+
+    - name: Check licenses
+      run: |
+        pip-licenses --format=json --output-file=licenses.json
+        pip-licenses --format=plain-vertical
+    {% endif %}
+
+    - name: Upload license report
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: license-report
+        path: licenses.json 
