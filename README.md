@@ -1,8 +1,8 @@
 # uvstart
 
-`uvstart` is a **revolutionary Python project initializer** that makes creating and sharing reproducible projects **ridiculously simple**. From basic scripts to complex research experiments, uvstart handles everything with modern tools like [`uv`](https://github.com/astral-sh/uv) and [`poetry`](https://python-poetry.org/).
+`uvstart` is a **fast Python project initializer** that makes creating and sharing reproducible projects simple. From basic scripts to complex research experiments, uvstart handles everything with modern tools like [`uv`](https://github.com/astral-sh/uv) and [`poetry`](https://python-poetry.org/).
 
-**New in v2.0:** Revolutionary template system with **research reproducibility** and **one-command template creation**.
+**New in v2.0:** Enhanced template system with **research reproducibility** and **one-command template creation**.
 
 ---
 
