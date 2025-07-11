@@ -793,7 +793,9 @@ class SystemChecker:
                     with open("/etc/os-release") as f:
                         for line in f:
                             if line.startswith("PRETTY_NAME="):
-                                print(f"   {line.split('=', 1)[1].strip('\"\\n')}")
+                                # Extract and clean the OS name
+                                os_name = line.split('=', 1)[1].strip('"\\n')
+                                print(f"   {os_name}")
                                 break
             except:
                 pass
