@@ -1156,7 +1156,7 @@ def create_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--version", default="0.1.0", help="Project version")
     generate_parser.add_argument("--author", default="Your Name", help="Author name")
     generate_parser.add_argument("--email", default="your.email@example.com", help="Author email")
-    generate_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm", "rye", "hatch"], help="Backend to use")
+    generate_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
     generate_parser.add_argument("--features", nargs="*", choices=["cli", "web", "notebook", "pytorch"], help="Features to include")
     generate_parser.add_argument("--output", default=".", help="Output directory")
     generate_parser.add_argument("--force", action="store_true", help="Overwrite existing directory")
@@ -1196,7 +1196,7 @@ def create_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("path", help="Project path")
     init_parser.add_argument("--project-name", help="Project name (defaults to path basename)")
     init_parser.add_argument("--python-version", default="3.11", help="Python version to use (e.g., 3.11, 3.12)")
-    init_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm", "rye", "hatch"], help="Backend to use")
+    init_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
     init_parser.add_argument("--features", nargs="*", choices=["cli", "web", "notebook", "pytorch"], help="Features to include")
     init_parser.add_argument("--no-git", action="store_true", help="Do not initialize git repository")
     

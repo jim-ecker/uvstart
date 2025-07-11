@@ -1,29 +1,29 @@
 # uvstart
 
-`uvstart` is a **fast Python project initializer** that makes creating and sharing reproducible projects simple. From basic scripts to complex research experiments, uvstart handles everything with modern tools like [`uv`](https://github.com/astral-sh/uv) and [`poetry`](https://python-poetry.org/).
+`uvstart` is a **fast Python project initializer** that makes creating and sharing reproducible projects simple. From basic scripts to complex applications, uvstart handles everything with modern tools like [`uv`](https://github.com/astral-sh/uv) and [`poetry`](https://python-poetry.org/).
 
-**New in v2.0:** Enhanced template system with **research reproducibility** and **one-command template creation**.
+**v2.0 Update:** Streamlined project generation with unified command interface.
 
 ---
 
 ## Key Features
 
-### **Template Revolution**
-- **Research Reproducibility:** Generate replicable experiment templates in 30 seconds
-- **Directory Magic:** Turn ANY project into a template with one command
-- **Smart Presets:** Create professional templates instantly
-- **Interactive Wizard:** Guided template creation for beginners
-- **Power User Mode:** Advanced YAML-based templates with inheritance
+### **Project Generation**
+- **Unified Interface:** Single `generate` command for all project types
+- **Backend Agnostic:** Works with `uv`, `poetry`, and `pdm`
+- **Template System:** Built-in templates for common project types
+- **Interactive Setup:** Step-by-step project initialization
+- **Modern Tooling:** Integrated testing, linting, and development tools
 
-### **Modern & Fast**
-- Shell-based CLI with **minimal dependencies**
-- Support for `uv`, `poetry`, `pdm`, `rye`, and `hatch`
+### **Performance and Compatibility**
+- Python-based CLI with minimal dependencies
+- Support for `uv`, `poetry`, and `pdm` backends
 - Enhanced `Makefile` task runner (universal compatibility)
-- Hybrid Python+C++ architecture for performance
+- Backend abstraction layer for unified operations
 
-### **Production Ready**
-- Backend abstraction layer (works with any Python package manager)
-- Comprehensive project templates for every use case
+### **Project Structure and Tooling**
+- Backend abstraction layer (works with any supported Python package manager)
+- Comprehensive project templates for common use cases
 - Built-in testing, linting, and development tools
 - Git-ready with proper `.gitignore` and configuration
 
@@ -46,170 +46,80 @@ uvstart doctor  # Verify installation
 
 ---
 
-## Template Creation - Five Levels of Power
-
-### **Level 1: Research Experiment Replication**
-**Perfect for scientific reproducibility - the ultimate game-changer!**
-
-```bash
-# Set up your research project exactly as you want
-mkdir my-ml-experiment
-cd my-ml-experiment
-# Create train.py, config.yaml, requirements.txt, notebooks...
-
-# Generate replicable research template in 30 seconds
-uvstart template research my-experiment
-```
-
-**Automatically extracts:**
-- Research hypothesis and methodology
-- Experimental parameters (learning rates, epochs, batch sizes)
-- Random seeds for exact reproducibility
-- Dependencies and environment specs
-- Dataset requirements
-- Creates comprehensive REPLICATION.md guide
-
-**Perfect for:**
-- Machine learning experiments
-- Data analysis pipelines
-- Scientific computing projects
-- Thesis and research papers
-- Collaborative research sharing
-
-### **Level 2: Ultimate Directory Simplicity**
-**Turn ANY existing project into a template!**
-
-```bash
-# Set up your project directory exactly how you want
-mkdir my-awesome-project
-cd my-awesome-project
-# Create all your files, structure, dependencies...
-
-# One command turns it into a reusable template
-uvstart template from-directory my-template
-```
-
-**Automatically handles:**
-- Complete directory structure scanning
-- Dependency detection from requirements files
-- Smart variable substitution (names, emails, versions)
-- Category auto-detection (web, CLI, data science, etc.)
-- Ignores build artifacts, git files, caches
-- Creates full template.yaml configuration
-
-### **Level 3: Quick Presets**
-**Professional templates with one command:**
-
-```bash
-uvstart template quick my-api api           # FastAPI REST API
-uvstart template quick my-tool cli-tool     # Click CLI application
-uvstart template quick scraper web-scraper  # Web scraping project
-uvstart template quick analysis data-app    # Data analysis with pandas
-uvstart template quick chatbot bot          # Discord/Telegram bot
-uvstart template quick simple simple        # Basic Python project
-```
-
-### **Level 4: Interactive Wizard**
-**Guided creation for beginners:**
-
-```bash
-uvstart template new
-# Answer 3-4 simple questions, get a complete template!
-```
-
-### **Level 5: Power User Mode**
-**Advanced YAML-based templates with:**
-- Template inheritance systems
-- Complex Jinja2 templating
-- CI/CD pipeline generation
-- Advanced dependency management
-- Custom hooks and automation
-
----
-
 ## Project Generation
 
 ### **Create New Projects**
 ```bash
-# Generate from any template
-uvstart generate my-project template-name
+# Generate from built-in templates
+uvstart generate my-api --features web --backend uv
+uvstart generate my-tool --features cli --backend poetry
+uvstart generate my-analysis --features notebook --backend pdm
+uvstart generate my-model --features pytorch --backend uv
 
-# Built-in templates
-uvstart generate my-api web          # FastAPI web application
-uvstart generate my-tool cli         # Command-line application
-uvstart generate my-analysis notebook # Data science project
-uvstart generate my-model pytorch    # Deep learning project
-
-# Your custom templates
-uvstart generate my-experiment my-research-template
+# Customize project details
+uvstart generate my-project --features cli --backend uv --description "My awesome project" --author "Your Name"
 ```
 
 ### **Initialize in Current Directory**
 ```bash
 mkdir MyProject && cd MyProject
-uvstart init 3.12 --backend uv --template cli
+uvstart init . --python-version 3.12 --backend uv --features cli
 ```
+
+### **Available Features**
+- **cli:** Command-line application with Click
+- **web:** FastAPI web application
+- **notebook:** Data science project with Jupyter
+- **pytorch:** Deep learning project with PyTorch
+
+### **Supported Backends**
+- **uv:** Extremely fast package manager
+- **poetry:** Mature dependency management
+- **pdm:** Fast Python package manager
 
 ---
 
-## Template Management
+## Project Management
 
+### **Dependency Management**
 ```bash
-# List available templates
-uvstart template list
+# Add packages
+uvstart add requests pandas
 
-# Show template details  
-uvstart template info template-name
+# Add development dependencies
+uvstart add --dev pytest black
 
-# View presets
-uvstart template presets
+# Remove packages
+uvstart remove unused-package
 
-# Create from directory (ultimate simplicity)
-uvstart template from-directory my-template
-
-# Research template (reproducibility)
-uvstart template research my-experiment
-
-# Quick preset
-uvstart template quick my-api api
-
-# Interactive creation
-uvstart template new
+# Sync dependencies
+uvstart sync
+uvstart sync --dev
 ```
 
----
-
-## Research Reproducibility Example
-
-**Traditional research sharing:**
+### **Running Projects**
 ```bash
-# Email Python scripts
-# Hope dependencies work
-# Manually document setup
-# Pray for reproducibility
+# Run the main application
+uvstart run python main.py
+
+# Run with arguments
+uvstart run python main.py --help
+
+# Run tests
+uvstart run pytest
 ```
 
-**uvstart research templates:**
+### **Project Information**
 ```bash
-# 1. Set up experiment
-mkdir cifar10-experiment
-cd cifar10-experiment
-# Create train.py, config.yaml, requirements.txt, README.md
+# Show backend information
+uvstart info
 
-# 2. Generate replicable template (30 seconds)
-uvstart template research cifar10-classification
+# List installed packages
+uvstart list
 
-# 3. Share template (not raw code)
-# Others can perfectly replicate with:
-uvstart generate my-version cifar10-classification
+# Analyze current project
+uvstart analyze
 ```
-
-**Generated replication package includes:**
-- Complete project template with templated parameters
-- REPLICATION.md with step-by-step instructions
-- Extracted research metadata (hypothesis, methodology)
-- Preserved environment and dependency specifications
-- Random seed tracking for exact reproducibility
 
 ---
 
@@ -242,43 +152,32 @@ make templates               # List templates
 ## Built-in Templates
 
 ### **Web Applications**
-- **FastAPI:** REST APIs with authentication, docs, testing
-- **Flask:** Lightweight web applications
-- **Django:** Full-featured web framework setup
+- **web:** FastAPI REST APIs with authentication, docs, testing
 
 ### **CLI Applications**
-- **Click:** Modern command-line tools with subcommands
-- **Argparse:** Traditional CLI applications
-- **Rich:** Beautiful terminal applications
+- **cli:** Modern command-line tools with Click and argparse
 
 ### **Data Science**
-- **Notebook:** Jupyter with pandas, matplotlib, analysis pipeline
-- **MLOps:** Complete ML workflow with tracking and deployment
-- **Research:** LaTeX papers with bibliography and data integration
+- **notebook:** Jupyter with pandas, matplotlib, analysis pipeline
 
 ### **Machine Learning**
-- **PyTorch:** Deep learning with training pipelines, TensorBoard
-- **Computer Vision:** Image processing and CNN architectures
-- **NLP:** Language models and text processing pipelines
+- **pytorch:** Deep learning with training pipelines, TensorBoard
 
-### **Modern Development**
-- **Microservice:** Cloud-native services with Docker, Kubernetes
-- **DevContainers:** VS Code development environments
-- **CI/CD:** GitHub Actions with security scanning and testing
+### **Advanced Templates**
+- **microservice:** Cloud-native services with Docker, Kubernetes
+- **mlops:** Complete ML workflow with tracking and deployment
 
 ---
 
 ## Backend Support
 
-uvstart works seamlessly with all modern Python package managers:
+uvstart works seamlessly with modern Python package managers:
 
 | Backend | Speed | Environment | Lock Files | Publishing |
 |---------|-------|-------------|------------|------------|
 | **uv** | Extremely fast | `__pypackages__/` | `uv.lock` | External tools |
 | **poetry** | Mature | `.venv/` | `poetry.lock` | `poetry publish` |
 | **pdm** | Fast | `.venv/` | `pdm.lock` | `pdm publish` |
-| **rye** | Modern | `.venv/` | `requirements.lock` | External tools |
-| **hatch** | Flexible | `.venv/` | Custom | `hatch publish` |
 
 **Auto-detection:** uvstart automatically detects your preferred backend and provides unified commands.
 
@@ -288,12 +187,11 @@ uvstart works seamlessly with all modern Python package managers:
 
 ```bash
 uvstart doctor                    # Comprehensive environment check
-uvstart doctor --verbose         # Detailed system information
 ```
 
 **Checks include:**
 - Python versions and installations
-- Package managers (uv, poetry, pip, etc.)
+- Package managers (uv, poetry, pdm)
 - Development tools (git, make, editors)
 - uvstart installation health
 - System compatibility
@@ -302,60 +200,37 @@ uvstart doctor --verbose         # Detailed system information
 
 ## Examples
 
-### **Research Experiment**
-```bash
-# Set up ML experiment
-mkdir image-classification
-cd image-classification
-# Create train.py, config.yaml, model.py, requirements.txt
-
-# Generate replicable template
-uvstart template research image-classification
-
-# Others replicate with:
-uvstart generate my-experiment image-classification
-cd my-experiment
-make sync && make run
-```
-
 ### **Quick API Development**
 ```bash
-uvstart template quick my-api api
-uvstart generate test-api my-api
+uvstart generate test-api --features web --backend uv
 cd test-api && make sync && make run
 # FastAPI server running at http://localhost:8000
 ```
 
-### **Data Analysis Project**
-```bash
-mkdir analysis && cd analysis
-# Set up notebooks, data processing, visualization
-uvstart template from-directory analysis-template
-
-# Share with colleagues
-uvstart generate team-analysis analysis-template
-```
-
 ### **CLI Tool Creation**
 ```bash
-uvstart template quick my-tool cli-tool
-uvstart generate awesome-cli my-tool
+uvstart generate awesome-cli --features cli --backend uv
 cd awesome-cli && make sync
 make run hello --name "World"
+```
+
+### **Data Analysis Project**
+```bash
+uvstart generate analysis --features notebook --backend poetry
+cd analysis && make sync
+make notebook
+```
+
+### **Machine Learning Project**
+```bash
+uvstart generate ml-project --features pytorch --backend uv
+cd ml-project && make sync
+make run python train.py
 ```
 
 ---
 
 ## Advanced Features
-
-### **Template Inheritance**
-```yaml
-# Base template with common structure
-extends: "base/python-project"
-metadata:
-  name: "my-specialized-template"
-  features: ["web", "database"]
-```
 
 ### **Environment Variables**
 ```bash
@@ -369,28 +244,8 @@ export UVSTART_TEMPLATES_DIR="$HOME/my-templates"
 # Create custom templates
 mkdir ~/.local/uvstart/templates/features/my-template
 # Add template files and template.yaml
-uvstart template list  # Shows your custom template
+# Then use with existing features: --features cli,web,notebook,pytorch
 ```
-
----
-
-## Research Use Cases
-
-**Perfect for:**
-- **Academic Research:** Reproducible experiments, thesis projects
-- **Industry R&D:** Systematic experimentation, parameter tracking
-- **Machine Learning:** Model training, hyperparameter optimization
-- **Data Science:** Analysis pipelines, statistical studies
-- **Scientific Computing:** Simulations, numerical methods
-- **Collaborative Research:** Team project standardization
-
-**Supported Research Patterns:**
-- Configuration-driven experiments
-- Jupyter notebook workflows
-- Training script automation
-- Dataset management
-- Results tracking and visualization
-- Environment preservation
 
 ---
 
@@ -401,14 +256,13 @@ We welcome contributions! Here's how to get started:
 ```bash
 git clone https://github.com/jim-ecker/uvstart.git
 cd uvstart
-uvstart init 3.12 --backend uv
+uvstart init . --python-version 3.12 --backend uv
 make sync && make test
 ```
 
 **Development areas:**
 - New template presets
 - Backend integrations
-- Research workflow improvements
 - Documentation and examples
 
 ---
@@ -435,9 +289,10 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 - Perfect reproducibility out of the box
 - Focus on building, not configuring
 
-**Ready to revolutionize your Python development?**
+**Get started:**
 
 ```bash
-uvstart template research my-breakthrough-experiment
-# Science happens here
+uvstart generate my-project --features cli --backend uv
+# Start building your application
 ```
+
