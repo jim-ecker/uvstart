@@ -6,8 +6,11 @@ on:
   pull_request:
     branches: [ main, develop ]
   schedule:
-    # Run weekly security scans on Mondays at 2 AM UTC
-    - cron: '0 2 * * 1'
+    - cron: '0 2 * * 1'  # Mondays at 2 AM UTC
+
+permissions:
+  contents: read
+  security-events: write  # Needed for SARIF upload
 
 jobs:
   secret-scan:
@@ -18,13 +21,17 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: TruffleHog OSS
-        uses: trufflesecurity/trufflehog@main
-        with:
-          path: ./
-          base: main
-          head: HEAD
-          extra_args: --debug --only-verified
+      - name: Run TruffleHog (fallback if base=HEAD)
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            BASE=$(jq -r .pull_request.base.sha "$GITHUB_EVENT_PATH")
+            HEAD=$(jq -r .pull_request.head.sha "$GITHUB_EVENT_PATH")
+          else
+            BASE="HEAD^"
+            HEAD="HEAD"
+          fi
+          echo "Scanning from $BASE to $HEAD..."
+          trufflehog git file://. --base "$BASE" --head "$HEAD" --only-verified || true
 
   dependency-scan:
     name: Dependency Vulnerability Scan
@@ -42,22 +49,20 @@ jobs:
 
       - name: Scan Python dependencies
         run: |
-          # Scan frontend dependencies
-          cd frontend
+          mkdir -p reports
           if [ -f requirements.txt ]; then
-            safety check -r requirements.txt --json --output ../safety-report.json || true
+            safety check -r requirements.txt --json > reports/safety-report.json || true
           fi
-          cd ..
 
       - name: Upload Safety report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: safety-report
-          path: safety-report.json
+          path: reports/safety-report.json
 
   code-analysis:
-    name: Static Code Analysis
+    name: Static Code Analysis (Semgrep)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -65,18 +70,17 @@ jobs:
       - name: Run Semgrep
         uses: returntocorp/semgrep-action@v1
         with:
-          config: >-
+          config: |
             p/security-audit
             p/secrets
             p/python
             p/c
-          generateSarif: "1"
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload Semgrep Results (SARIF)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: semgrep.sarif
-        if: always()
 
   codeql-analysis:
     name: CodeQL Analysis
@@ -92,19 +96,19 @@ jobs:
         language: [ 'python', 'cpp' ]
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: ${{ matrix.language }}
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
 
-    - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
 
-    - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
 
   license-check:
     name: License Compliance
@@ -112,21 +116,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check file licenses
+      - name: Check license compliance
         run: |
-          # Check for proper license headers in source files
-          echo "Checking license compliance..."
-          
-          # Check that LICENSE file exists
+          echo "Checking license..."
           test -f LICENSE
-          
-          # Check for any GPL-licensed files that might conflict
-          if find . -name "*.py" -o -name "*.cpp" -o -name "*.hpp" | xargs grep -l "GPL" | grep -v LICENSE; then
-            echo "Warning: Found GPL references in source files"
+
+          if find . \( -name "*.py" -o -name "*.cpp" -o -name "*.hpp" \) | xargs grep -l "GPL" | grep -v LICENSE; then
+            echo "❌ Found GPL references in source files"
             exit 1
           fi
 
       - name: Validate project license
-        run: |
-          # Ensure we have MIT license
-          grep -q "MIT License" LICENSE 
+        run: grep -q "MIT License" LICENSE
