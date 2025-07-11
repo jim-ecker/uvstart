@@ -32,6 +32,7 @@ COMMANDS:
     list       List installed packages
     info       Show backend information
     generate   Generate new project from templates
+    template   Manage and create templates
     analyze    Analyze current project
     init       Initialize a new Python project
     doctor     Check environment health and dependencies
@@ -45,6 +46,8 @@ EXAMPLES:
     # Hybrid system commands (Python frontend + C++ engine)
     uvstart init /path/to/project --backend uv --features cli
     uvstart generate my-cli --features cli --backend uv
+    uvstart template from-directory my-template
+    uvstart template list
     uvstart add requests pandas
     uvstart sync --dev
     uvstart analyze
@@ -66,7 +69,7 @@ fi
 
 case "$COMMAND" in
   # Hybrid system commands (Python frontend + C++ engine)
-  add|remove|sync|run|list|info|generate|analyze|install|init|doctor|update)
+  add|remove|sync|run|list|info|generate|template|analyze|install|init|doctor|update)
     "$HYBRID_CLI" "$COMMAND" "$@"
     ;;
   
@@ -77,13 +80,6 @@ case "$COMMAND" in
   
   sync-dev)
     "$HYBRID_CLI" sync --dev "$@"
-    ;;
-  
-  # Deprecated commands (removed - show helpful message)
-  template)
-    echo -e "${YELLOW}The 'template' command has been replaced by 'generate'${NC}"
-    echo "Try: uvstart generate <name> --features cli,web --backend uv"
-    echo "Run: uvstart generate --help"
     ;;
   
   version|--version|-V)
@@ -103,6 +99,7 @@ case "$COMMAND" in
     echo
     echo "Did you mean one of these?"
     echo "  uvstart generate    (create new project)"
+    echo "  uvstart template    (manage templates)"
     echo "  uvstart add         (add packages)"
     echo "  uvstart info        (show backend info)"
     exit 1

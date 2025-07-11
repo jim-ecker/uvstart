@@ -20,6 +20,7 @@ from easy_templates import EasyTemplateCreator, quick_template
 from template_manager import IntegratedTemplateManager
 from directory_template import DirectoryTemplateGenerator, generate_template_from_current_directory
 from research_templates import ResearchTemplateGenerator, generate_research_template_from_directory
+from template_commands import TemplateManager
 
 
 class UVStartEngine:
@@ -1158,7 +1159,17 @@ def create_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--author", default="Your Name", help="Author name")
     generate_parser.add_argument("--email", default="your.email@example.com", help="Author email")
     generate_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
-    generate_parser.add_argument("--features", nargs="*", choices=["cli", "web", "notebook", "pytorch"], help="Features to include")
+    
+    # Get available features dynamically
+    try:
+        from template_commands import TemplateManager
+        manager = TemplateManager()
+        available_features = [t.name for t in manager.list_templates()]
+    except:
+        # Fallback to basic features if template manager fails
+        available_features = ["cli", "web", "notebook", "pytorch"]
+    
+    generate_parser.add_argument("--features", nargs="*", choices=available_features, help="Features to include")
     generate_parser.add_argument("--output", default=".", help="Output directory")
     generate_parser.add_argument("--force", action="store_true", help="Overwrite existing directory")
     
@@ -1198,7 +1209,7 @@ def create_parser() -> argparse.ArgumentParser:
     init_parser.add_argument("--project-name", help="Project name (defaults to path basename)")
     init_parser.add_argument("--python-version", default="3.11", help="Python version to use (e.g., 3.11, 3.12)")
     init_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
-    init_parser.add_argument("--features", nargs="*", choices=["cli", "web", "notebook", "pytorch"], help="Features to include")
+    init_parser.add_argument("--features", nargs="*", choices=available_features, help="Features to include")
     init_parser.add_argument("--no-git", action="store_true", help="Do not initialize git repository")
     
     # Doctor command
@@ -1210,40 +1221,33 @@ def create_parser() -> argparse.ArgumentParser:
     update_parser.add_argument("--force", action="store_true", help="Force update even if already up to date")
     update_parser.add_argument("--backup", action="store_true", help="Create a backup of the current installation before updating")
     
-    # Template management commands (EASY!)
-    template_parser = subparsers.add_parser("template", help="Easy template creation and management")
+    # Template management commands
+    template_parser = subparsers.add_parser("template", help="Template management and creation")
     template_subparsers = template_parser.add_subparsers(dest="template_action", help="Template actions")
     
-    # Create new template interactively
-    template_new_parser = template_subparsers.add_parser("new", help="Create a new template (interactive wizard)")
-    
-    # Quick template creation with presets
-    template_quick_parser = template_subparsers.add_parser("quick", help="Create template quickly with presets")
-    template_quick_parser.add_argument("name", help="Template name")
-    template_quick_parser.add_argument("type", nargs="?", default="simple", 
-                                      help="Template type: api, cli-tool, data-app, web-scraper, bot, simple")
-    template_quick_parser.add_argument("--description", help="Custom description")
-    
-    # List template presets
-    template_presets_parser = template_subparsers.add_parser("presets", help="List available template presets")
-    
-    # List templates  
+    # List templates
     template_list_parser = template_subparsers.add_parser("list", help="List all available templates")
     
     # Template info
     template_info_parser = template_subparsers.add_parser("info", help="Show detailed template information")
     template_info_parser.add_argument("template", help="Template name")
     
-    # Generate template from current directory (ULTIMATE SIMPLICITY!)
-    template_from_dir_parser = template_subparsers.add_parser("from-directory", help="Generate template from current directory")
+    # Create template from current directory
+    template_from_dir_parser = template_subparsers.add_parser("from-directory", help="Create template from current directory")
     template_from_dir_parser.add_argument("name", help="Template name")
     template_from_dir_parser.add_argument("--description", help="Template description")
+    template_from_dir_parser.add_argument("--category", help="Template category")
+    template_from_dir_parser.add_argument("--source", help="Source directory (default: current directory)", default=".")
     
-    # Research template generation (EXPERIMENT REPLICATION!)
-    template_research_parser = template_subparsers.add_parser("research", help="Generate research template for experiment replication")
+    # Create research template
+    template_research_parser = template_subparsers.add_parser("research", help="Create research reproducibility template")
     template_research_parser.add_argument("name", help="Template name")
     template_research_parser.add_argument("--description", help="Template description")
-    template_research_parser.add_argument("--preserve-data", action="store_true", help="Preserve data directory structure")
+    template_research_parser.add_argument("--source", help="Source directory (default: current directory)", default=".")
+    
+    # Delete template
+    template_delete_parser = template_subparsers.add_parser("delete", help="Delete a user template")
+    template_delete_parser.add_argument("name", help="Template name to delete")
     
     return parser
 
@@ -1252,136 +1256,111 @@ def template_command(args) -> int:
     """Handle template management commands"""
     if not hasattr(args, 'template_action') or not args.template_action:
         print("Error: No template action specified", file=sys.stderr)
+        print("Available actions: list, info, from-directory, research, delete")
         return 1
     
     try:
-        if args.template_action == "new":
-            # Interactive template creation
-            creator = EasyTemplateCreator()
-            template_name = creator.create_template_interactive()
-            print(f"\nTemplate '{template_name}' created successfully!")
-            print(f"Test it with: ./uvstart generate test-{template_name} {template_name}")
-            return 0
+        manager = TemplateManager()
         
-        elif args.template_action == "quick":
-            # Quick template creation
-            description = getattr(args, 'description', None)
-            try:
-                template_path = quick_template(args.name, args.type)
-                print(f"Quick template '{args.name}' created!")
-                print(f"Test it with: ./uvstart generate test-{args.name} {args.name}")
-                return 0
-            except Exception as e:
-                print(f"Error creating template: {e}", file=sys.stderr)
-                return 1
-        
-        elif args.template_action == "from-directory":
-            # Generate template from current directory (ULTIMATE SIMPLICITY!)
-            try:
-                description = getattr(args, 'description', None)
-                template_path = generate_template_from_current_directory(args.name, description)
-                return 0
-            except Exception as e:
-                print(f"Error creating template from directory: {e}", file=sys.stderr)
-                return 1
-        
-        elif args.template_action == "research":
-            # Generate research template for experiment replication
-            try:
-                description = getattr(args, 'description', None)
-                preserve_data = getattr(args, 'preserve_data', False)
-                
-                # Use research template generator
-                generator = ResearchTemplateGenerator()
-                current_dir = Path.cwd()
-                template_path = generator.generate_research_template(
-                    current_dir, args.name, description, preserve_data
-                )
-                
-                print(f"\nResearch template '{args.name}' created successfully!")
-                print(f"Location: {template_path}")
-                print(f"Replication guide: {template_path}/REPLICATION.md.j2")
-                print(f"\nTest: uvstart generate test-{args.name} {args.name}")
-                return 0
-            except Exception as e:
-                print(f"Error creating research template: {e}", file=sys.stderr)
-                return 1
-        
-        elif args.template_action == "presets":
-            # List available presets
-            creator = EasyTemplateCreator()
-            print("Available Template Presets:")
-            print("=" * 40)
-            for name, preset in creator.template_presets.items():
-                print(f"  {name:12} - {preset['description']}")
-                print(f"               Category: {preset['category']}")
-                if preset['dependencies']:
-                    print(f"               Dependencies: {', '.join(preset['dependencies'])}")
-                print()
+        if args.template_action == "list":
+            templates = manager.list_templates()
             
-            print("Usage:")
-            print("  ./uvstart template quick my-api api")
-            print("  ./uvstart template quick my-tool cli-tool")
-            print()
-            print("OR generate from your current directory:")
-            print("  ./uvstart template from-directory my-template")
-            return 0
-        
-        elif args.template_action == "list":
-            # List all templates
-            try:
-                manager = IntegratedTemplateManager()
-                templates = manager.list_available_templates()
-                
-                print("Available Templates:")
-                print("=" * 50)
-                
-                # Group by type
-                by_type = {}
-                for template in templates:
-                    if template.type not in by_type:
-                        by_type[template.type] = []
-                    by_type[template.type].append(template)
-                
-                for template_type, template_list in by_type.items():
-                    print(f"\n{template_type.upper()} Templates:")
-                    for template in template_list:
-                        print(f"  {template.name:15} - {template.description}")
-                
-                print(f"\nTotal: {len(templates)} templates")
+            if not templates:
+                print("No templates found")
                 return 0
-            except Exception as e:
-                print(f"Error listing templates: {e}", file=sys.stderr)
-                return 1
+            
+            print("Available Templates:")
+            print("=" * 60)
+            
+            # Group by type
+            by_type = {}
+            for template in templates:
+                if template.type not in by_type:
+                    by_type[template.type] = []
+                by_type[template.type].append(template)
+            
+            for template_type, template_list in by_type.items():
+                print(f"\n{template_type.upper()} Templates:")
+                for template in template_list:
+                    features_str = f" [{', '.join(template.features)}]" if template.features else ""
+                    print(f"  {template.name:20} - {template.description}{features_str}")
+                    print(f"    Category: {template.category}")
+            
+            print(f"\nTotal: {len(templates)} templates")
+            print("\nUsage:")
+            print("  uvstart generate my-project --features TEMPLATE_NAME")
+            print("  uvstart template info TEMPLATE_NAME")
+            return 0
         
         elif args.template_action == "info":
-            # Show template info
-            try:
-                manager = IntegratedTemplateManager()
-                info = manager.get_template_info(args.template)
-                
-                if not info:
-                    print(f"Template '{args.template}' not found", file=sys.stderr)
-                    return 1
-                
-                print(f"Template: {info['name']}")
-                print("=" * 50)
-                print(f"Type:        {info['type']}")
-                print(f"Description: {info['description']}")
-                print(f"Category:    {info['category']}")
-                print(f"Features:    {', '.join(info['features'])}")
-                
-                if 'version' in info:
-                    print(f"Version:     {info['version']}")
-                if 'author' in info:
-                    print(f"Author:      {info['author']}")
-                if 'path' in info and info['path']:
-                    print(f"Path:        {info['path']}")
-                
-                return 0
-            except Exception as e:
-                print(f"Error getting template info: {e}", file=sys.stderr)
+            info = manager.get_template_info(args.template)
+            
+            if not info:
+                print(f"Template '{args.template}' not found", file=sys.stderr)
                 return 1
+            
+            print(f"Template: {info['name']}")
+            print("=" * 60)
+            print(f"Type:        {info['type']}")
+            print(f"Description: {info['description']}")
+            print(f"Category:    {info['category']}")
+            print(f"Features:    {', '.join(info['features']) if info['features'] else 'None'}")
+            print(f"Author:      {info['author']}")
+            print(f"Version:     {info['version']}")
+            
+            if info.get('path'):
+                print(f"Path:        {info['path']}")
+            
+            if info.get('template_variables'):
+                print(f"Variables:   {', '.join(info['template_variables'])}")
+            
+            return 0
+        
+        elif args.template_action == "from-directory":
+            source_path = Path(args.source).resolve()
+            
+            if not source_path.exists():
+                print(f"Error: Source directory '{source_path}' does not exist", file=sys.stderr)
+                return 1
+            
+            if not source_path.is_dir():
+                print(f"Error: '{source_path}' is not a directory", file=sys.stderr)
+                return 1
+            
+            success = manager.create_from_directory(
+                source_path, 
+                args.name, 
+                args.description,
+                args.category,
+                is_research=False
+            )
+            
+            return 0 if success else 1
+        
+        elif args.template_action == "research":
+            source_path = Path(args.source).resolve()
+            
+            if not source_path.exists():
+                print(f"Error: Source directory '{source_path}' does not exist", file=sys.stderr)
+                return 1
+            
+            if not source_path.is_dir():
+                print(f"Error: '{source_path}' is not a directory", file=sys.stderr)
+                return 1
+            
+            success = manager.create_from_directory(
+                source_path, 
+                args.name, 
+                args.description,
+                category="research",
+                is_research=True
+            )
+            
+            return 0 if success else 1
+        
+        elif args.template_action == "delete":
+            success = manager.delete_template(args.name)
+            return 0 if success else 1
         
         else:
             print(f"Unknown template action: {args.template_action}", file=sys.stderr)
