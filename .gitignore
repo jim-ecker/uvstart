@@ -64,3 +64,7 @@ Thumbs.db
 
 # Development notes (internal documentation)
 DEV_NOTES.md
+
+# Emoji cleanup tools (temporary development files)
+remove_emojis.py
+EMOJI_CLEANER.md
