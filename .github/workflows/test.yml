@@ -1,6 +1,13 @@
-name: uvstart Test
+name: uvstart Comprehensive Test Suite
 
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHONPATH: ${{ github.workspace }}
 
 jobs:
   engine-build:
@@ -27,15 +34,106 @@ jobs:
           name: uvstart-engine
           path: engine/uvstart-engine
 
-  test-core:
-    name: Core Functionality Test
-    runs-on: ubuntu-latest
+  test-comprehensive:
+    name: Comprehensive Test Suite
+    runs-on: ${{ matrix.os }}
     needs: engine-build
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         backend: [uv, poetry]
+        include:
+          # Test Windows with specific combinations
+          - os: windows-latest
+            python-version: "3.11"
+            backend: uv
+          - os: windows-latest
+            python-version: "3.12"
+            backend: poetry
 
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact (Unix)
+        if: runner.os != 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-ci"
+          git config --global user.email "ci@uvstart.dev"
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv (if testing uv backend)
+        if: matrix.backend == 'uv'
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+          else
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Install Poetry (if testing poetry backend)
+        if: matrix.backend == 'poetry'
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | py -
+          else
+            curl -sSL https://install.python-poetry.org | python3 -
+            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          fi
+
+      - name: Install uvstart dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # Install optional dependencies for enhanced features
+          pip install PyYAML  # For YAML template support
+
+      - name: Add uvstart to PATH (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Add uvstart to PATH (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          echo "${{ github.workspace }}" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Run comprehensive test suite (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          chmod +x test_uvstart.sh
+          ./test_uvstart.sh
+
+      - name: Run basic tests (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          # Run basic uvstart commands on Windows
+          python frontend/uvstart.py --help
+          python frontend/uvstart.py doctor
+          python frontend/uvstart.py template list
+
+  test-template-features:
+    name: Template System Tests
+    runs-on: ubuntu-latest
+    needs: engine-build
     steps:
       - uses: actions/checkout@v4
 
@@ -50,26 +148,399 @@ jobs:
           chmod +x uvstart
           chmod +x engine/uvstart-engine
 
-      - name: Set up Git identity
-        run: |
-          git config --global user.name "uvstart-bot"
-          git config --global user.email "uvstart@users.noreply.github.com"
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
 
-      - name: Install backend (${{ matrix.backend }})
+      - name: Install uv
         run: |
-          if [ "${{ matrix.backend }}" = "uv" ]; then
-            curl -LsSf https://astral.sh/uv/install.sh | sh
-            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          elif [ "${{ matrix.backend }}" = "poetry" ]; then
-            curl -sSL https://install.python-poetry.org | python3 -
-            echo "$HOME/.local/bin" >> $GITHUB_PATH
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip PyYAML
+
+      - name: Add uvstart to PATH
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-ci"
+          git config --global user.email "ci@uvstart.dev"
+
+      - name: Test template features in detail
+        run: |
+          # Test all built-in templates
+          for template in cli web notebook pytorch; do
+            echo "Testing $template template..."
+            uvstart generate "test-$template" --features "$template" --no-git --backend uv
+            test -d "test-$template"
+            test -f "test-$template/pyproject.toml"
+            echo "✓ $template template works"
+          done
+
+      - name: Test from-directory template creation
+        run: |
+          # Create a sample project
+          mkdir sample-api
+          cd sample-api
+          
+          # Create sample files
+          cat > main.py << 'EOF'
+          from fastapi import FastAPI
+          
+          app = FastAPI()
+          
+          @app.get("/")
+          def read_root():
+              return {"Hello": "World"}
+          EOF
+          
+          cat > requirements.txt << 'EOF'
+          fastapi>=0.68.0
+          uvicorn[standard]>=0.15.0
+          EOF
+          
+          mkdir api
+          cat > api/__init__.py << 'EOF'
+          """API package"""
+          __version__ = "1.0.0"
+          EOF
+          
+          # Create template from this directory
+          uvstart template from-directory fastapi-template --description "FastAPI template"
+          
+          # Verify template creation
+          uvstart template list | grep fastapi-template
+          uvstart template info fastapi-template
+          
+          cd ..
+          
+          # Test using the created template
+          uvstart generate test-fastapi --features fastapi-template --no-git --backend uv
+          test -d test-fastapi
+          test -f test-fastapi/main.py
+
+      - name: Test research template functionality
+        run: |
+          # Create a research project
+          mkdir ml-experiment
+          cd ml-experiment
+          
+          cat > experiment.yaml << 'EOF'
+          name: mnist_classifier
+          seed: 42
+          learning_rate: 0.001
+          batch_size: 32
+          epochs: 50
+          model: cnn
+          optimizer: adam
+          EOF
+          
+          cat > train.py << 'EOF'
+          import yaml
+          import json
+          
+          def load_config():
+              with open('experiment.yaml') as f:
+                  return yaml.safe_load(f)
+          
+          def train_model(config):
+              print(f"Training with config: {config}")
+              return {"accuracy": 0.95, "loss": 0.05}
+          
+          if __name__ == "__main__":
+              config = load_config()
+              results = train_model(config)
+              with open('results.json', 'w') as f:
+                  json.dump(results, f)
+          EOF
+          
+          mkdir data
+          mkdir models
+          mkdir logs
+          
+          # Create research template
+          uvstart template research ml-template --description "ML experiment template"
+          
+          # Verify research template
+          uvstart template list | grep ml-template
+          uvstart template info ml-template
+
+  test-configuration:
+    name: Configuration System Tests
+    runs-on: ubuntu-latest
+    needs: engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip PyYAML
+
+      - name: Add uvstart to PATH
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Test configuration system
+        run: |
+          # Create test configuration
+          mkdir -p ~/.local/uvstart
+          cat > ~/.local/uvstart/config.yaml << 'EOF'
+          default_backend: uv
+          default_python_version: 3.11
+          author: CI User
+          email: ci@uvstart.dev
+          EOF
+          
+          # Test configuration is read
+          uvstart doctor
+          
+          # Test project creation with config defaults
+          uvstart init test-config --no-git
+          test -d test-config
+          test -f test-config/pyproject.toml
+          
+          # Verify author in pyproject.toml
+          grep "CI User" test-config/pyproject.toml
+
+  test-project-analysis:
+    name: Project Analysis Tests
+    runs-on: ubuntu-latest
+    needs: engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install uv and dependencies
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          python -m pip install --upgrade pip PyYAML
+
+      - name: Add uvstart to PATH
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-ci"
+          git config --global user.email "ci@uvstart.dev"
+
+      - name: Test project analysis functionality
+        run: |
+          # Create different types of projects to analyze
+          
+          # 1. Basic Python project
+          uvstart init basic-project --no-git --backend uv
+          cd basic-project
+          uvstart analyze . | grep "PROJECT STRUCTURE"
+          uvstart analyze . | grep "BACKEND"
+          cd ..
+          
+          # 2. Web project
+          uvstart generate web-project --features web --no-git --backend uv
+          cd web-project
+          uvstart analyze . | grep "DETECTED FEATURES"
+          cd ..
+          
+          # 3. Research project with experiment config
+          mkdir research-analysis
+          cd research-analysis
+          cat > experiment.json << 'EOF'
+          {
+            "name": "test_experiment",
+            "seed": 42,
+            "learning_rate": 0.001,
+            "epochs": 100
+          }
+          EOF
+          cat > main.py << 'EOF'
+          import json
+          
+          def main():
+              with open('experiment.json') as f:
+                  config = json.load(f)
+              print(f"Running experiment: {config['name']}")
+          
+          if __name__ == "__main__":
+              main()
+          EOF
+          uvstart analyze . | grep "EXPERIMENT CONFIGURATION"
+          cd ..
+
+  test-error-handling:
+    name: Error Handling Tests
+    runs-on: ubuntu-latest
+    needs: engine-build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
+        run: |
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip PyYAML
+
+      - name: Add uvstart to PATH
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Test error handling
+        run: |
+          # Test invalid commands (should fail)
+          if uvstart invalid-command 2>/dev/null; then
+            echo "ERROR: Should have failed for invalid command"
+            exit 1
           fi
+          echo "✓ Invalid command properly rejected"
+          
+          # Test invalid template (should fail)
+          if uvstart template info non-existent-template 2>/dev/null; then
+            echo "ERROR: Should have failed for non-existent template"
+            exit 1
+          fi
+          echo "✓ Non-existent template properly rejected"
+          
+          # Test invalid project path (should fail)
+          if uvstart generate /invalid/path/project 2>/dev/null; then
+            echo "ERROR: Should have failed for invalid path"
+            exit 1
+          fi
+          echo "✓ Invalid path properly rejected"
 
-      - name: Run basic test suite
+  test-integration:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [engine-build, test-comprehensive, test-template-features]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download engine artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: uvstart-engine
+          path: engine/
+
+      - name: Make uvstart and engine executable
         run: |
-          chmod +x test_uvstart.sh
+          chmod +x uvstart
+          chmod +x engine/uvstart-engine
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install backends
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          curl -sSL https://install.python-poetry.org | python3 -
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip PyYAML
+
+      - name: Add uvstart to PATH
+        run: |
+          echo "${{ github.workspace }}" >> $GITHUB_PATH
+
+      - name: Set up Git identity
+        run: |
+          git config --global user.name "uvstart-ci"
+          git config --global user.email "ci@uvstart.dev"
+
+      - name: Run full workflow integration test
+        run: |
+          # Full workflow: create template -> generate project -> analyze -> build
+          
+          # 1. Create a custom template from directory
+          mkdir custom-app
+          cd custom-app
+          cat > app.py << 'EOF'
+          import argparse
+          
+          def main():
+              parser = argparse.ArgumentParser(description="Custom app")
+              parser.add_argument("--name", default="World")
+              args = parser.parse_args()
+              print(f"Hello, {args.name}!")
+          
+          if __name__ == "__main__":
+              main()
+          EOF
+          cat > requirements.txt << 'EOF'
+          click>=8.0
+          EOF
+          uvstart template from-directory custom-app-template --description "Custom CLI app template"
+          cd ..
+          
+          # 2. Generate project using custom template
+          uvstart generate my-custom-app --features custom-app-template --no-git --backend uv
+          test -d my-custom-app
+          test -f my-custom-app/app.py
+          
+          # 3. Analyze the generated project
+          cd my-custom-app
+          uvstart analyze . | grep "PROJECT STRUCTURE"
+          
+          # 4. Test that the project can be built/synced
+          uvstart sync
+          uvstart list
+          
+          echo "✓ Full workflow integration test passed"

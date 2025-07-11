@@ -242,7 +242,7 @@ class EasyTemplateCreator:
                     f"echo 'Generating {config.name} project...'"
                 ],
                 'post_generate': [
-                    f"echo '{config.name} project created! 🎉'",
+                    f"echo '{config.name} project created! '",
                     "echo 'Next steps:'",
                     "echo '1. {{backend}} sync'",
                     "echo '2. {{backend}} run python main.py'"
@@ -551,13 +551,13 @@ def quick_template(name: str, template_type: str = "simple") -> str:
         )
     
     template_path = creator.create_template(config)
-    print(f"✅ Quick template '{name}' created!")
+    print(f" Quick template '{name}' created!")
     return str(template_path)
 
 
 def demo_easy_templates():
     """Demo the easy template system"""
-    print("🚀 Easy Template Creation Demo")
+    print(" Easy Template Creation Demo")
     print("=" * 50)
     
     creator = EasyTemplateCreator()

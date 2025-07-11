@@ -61,3 +61,6 @@ requirements.lock
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Development notes (internal documentation)
+DEV_NOTES.md

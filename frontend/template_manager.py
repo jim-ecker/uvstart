@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 from dataclasses import dataclass
+import shutil
+from datetime import datetime
 
 # Import existing template system
 from templates import (
@@ -18,7 +20,7 @@ from templates import (
 # Import enhanced template system
 try:
     from enhanced_templates import (
-        AdvancedTemplateEngine, 
+        EnhancedTemplateEngine, 
         YAMLTemplateLoader, 
         TemplateMetadata,
         HAS_YAML,
@@ -58,7 +60,7 @@ class IntegratedTemplateManager:
         
         # Initialize enhanced features if available
         if ENHANCED_AVAILABLE:
-            self.enhanced_engine = AdvancedTemplateEngine(use_jinja2=True)
+            self.enhanced_engine = EnhancedTemplateEngine(use_jinja2=True)
             self.yaml_loader = YAMLTemplateLoader(self.templates_dir)
             self.user_manager = UserTemplateManager()
         else:
@@ -252,9 +254,26 @@ class IntegratedTemplateManager:
             hooks = config.get('hooks', {})
             if 'post_generate' in hooks:
                 for hook in hooks['post_generate']:
-                    expanded_hook = self.simple_engine.render_string(hook, context_dict)
-                    print(f"Hook: {expanded_hook}")
-                    # Note: Not executing shell commands for security
+                    # Replace template variables in hook commands
+                    processed_hook = hook
+                    for key, value in context_dict.items():
+                        processed_hook = processed_hook.replace(f'{{{{{key}}}}}', str(value))
+                    
+                    # Execute the hook command
+                    if processed_hook.startswith('echo '):
+                        # Handle echo commands specially - just print the message
+                        message = processed_hook[5:].strip().strip("'\"")
+                        print(message)
+                    else:
+                        # For other commands, you could execute them with subprocess
+                        print(f"Hook: {processed_hook}")
+            
+            # Add template metadata for experiment tracking
+            metadata_file = output_dir / ".uvstart-template"
+            with open(metadata_file, 'w') as f:
+                f.write(f"{template_name}\n")
+                f.write(f"Generated on: {datetime.now().isoformat()}\n")
+                f.write(f"Template type: user\n")
             
             print(f"Generated '{template_name}' project at {output_dir}")
             return True
@@ -263,38 +282,63 @@ class IntegratedTemplateManager:
             print(f"Error generating enhanced project: {e}")
             return False
     
-    def _generate_file_from_config(self, file_config: Dict[str, Any], 
-                                  context: Dict[str, Any], output_dir: Path, 
-                                  template_name: str) -> None:
-        """Generate a single file from template configuration"""
-        # Expand path template
-        file_path = self.simple_engine.render_string(file_config['path'], context)
-        output_path = output_dir / file_path
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+    def _generate_file_from_config(self, file_config: Dict[str, Any], context: Dict[str, Any], 
+                                  output_dir: Path, template_name: str) -> None:
+        """Generate a file from template configuration"""
+        file_path = file_config.get('path', '')
         
-        if 'content' in file_config:
-            # Direct content
-            content = file_config['content']
-        elif 'template' in file_config:
-            # Template file
+        # Replace template variables in path
+        for key, value in context.items():
+            file_path = file_path.replace(f'{{{{{key}}}}}', str(value))
+        
+        target_file = output_dir / file_path
+        target_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        if 'template' in file_config:
+            # Generate from template file
             template_file = file_config['template']
-            
-            # Find template file in template directory
             template_path = self._find_template_file(template_name, template_file)
             
             if template_path and template_path.exists():
-                if self.enhanced_engine and template_file.endswith('.j2'):
-                    content = self.enhanced_engine.render_file(template_path, context)
-                else:
-                    content = self.simple_engine.render_file(template_path, context)
+                try:
+                    with open(template_path, 'r', encoding='utf-8') as f:
+                        template_content = f.read()
+                    
+                    # Replace template variables
+                    for key, value in context.items():
+                        template_content = template_content.replace(f'{{{{{key}}}}}', str(value))
+                    
+                    with open(target_file, 'w', encoding='utf-8') as f:
+                        f.write(template_content)
+                        
+                except Exception as e:
+                    print(f"Warning: Could not process template {template_file}: {e}")
             else:
                 print(f"Warning: Template file not found: {template_file}")
-                content = f"# Template file not found: {template_file}\n"
-        else:
-            content = ""
-        
-        with open(output_path, 'w', encoding='utf-8') as f:
-            f.write(content)
+                
+        elif 'source' in file_config:
+            # Copy from source file
+            source_file = file_config['source']
+            source_path = self._find_template_file(template_name, source_file)
+            
+            if source_path and source_path.exists():
+                try:
+                    shutil.copy2(source_path, target_file)
+                except Exception as e:
+                    print(f"Warning: Could not copy source file {source_file}: {e}")
+            else:
+                print(f"Warning: Source file not found: {source_file}")
+                
+        elif 'content' in file_config:
+            # Generate with static content
+            content = file_config['content']
+            
+            # Replace template variables in content
+            for key, value in context.items():
+                content = content.replace(f'{{{{{key}}}}}', str(value))
+            
+            with open(target_file, 'w', encoding='utf-8') as f:
+                f.write(content)
     
     def _find_template_file(self, template_name: str, template_file: str) -> Optional[Path]:
         """Find a template file in the template directories"""

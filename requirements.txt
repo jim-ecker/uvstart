@@ -1,0 +1,11 @@
+# uvstart dependencies for isolated installation
+# These will be installed in uvstart's own venv, not polluting the host system
+
+# Template engine with advanced features
+jinja2>=3.1.0
+
+# YAML configuration support  
+PyYAML>=6.0
+
+# Pretty console output (optional but nice)
+rich>=13.0.0 

@@ -109,12 +109,12 @@ jobs:
 
       - name: Check licenses
         run: |
-          echo "🔍 Checking license compliance..."
+          echo " Checking license compliance..."
           test -f LICENSE
 
           # Search for GPL references in source files
           if find . \( -name "*.py" -o -name "*.cpp" -o -name "*.hpp" \) | xargs grep -l "GPL" | grep -v LICENSE; then
-            echo "❌ Found GPL references in source files"
+            echo " Found GPL references in source files"
             exit 1
           fi
 

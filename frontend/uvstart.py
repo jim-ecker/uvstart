@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 uvstart - Python project initializer with backend abstraction
+Enhanced with isolated environment and configuration management
 """
 
 import argparse
@@ -13,14 +14,16 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-# Import our advanced modules
-from config import ProjectDetector, ConfigParser, format_project_info
-from templates import ProjectGenerator, TemplateContext
-from easy_templates import EasyTemplateCreator, quick_template
-from template_manager import IntegratedTemplateManager
-from directory_template import DirectoryTemplateGenerator, generate_template_from_current_directory
-from research_templates import ResearchTemplateGenerator, generate_research_template_from_directory
-from template_commands import TemplateManager
+# Import our modules
+from config_manager import get_config
+from simple_templates import SimpleTemplateManager, TemplateContext
+
+# Try to import enhanced features (optional)
+try:
+    from template_commands import TemplateManager
+    ENHANCED_TEMPLATES = True
+except ImportError:
+    ENHANCED_TEMPLATES = False
 
 
 class UVStartEngine:
@@ -201,49 +204,192 @@ def format_backend_info(engine: UVStartEngine) -> str:
 
 
 def generate_project(args) -> int:
-    """Generate new project using template system"""
+    """Generate new project using template system (handles both new projects and in-place init)"""
+    import shutil
+    
+    # Get configuration for defaults
+    config = get_config()
+    
+    # Apply configuration defaults if not specified
+    backend = getattr(args, 'backend', None) or config.get_backend()
+    python_version = getattr(args, 'python_version', None) or config.get_python_version()
+    author = getattr(args, 'author', None) or config.get_author()
+    email = getattr(args, 'email', None) or config.get_email()
+    
+    # Determine if this is in-place initialization or new project creation
+    is_in_place = args.name_or_path == "." or Path(args.name_or_path).resolve() == Path.cwd().resolve()
+    
+    # Determine project name and target directory
+    if is_in_place:
+        # In-place initialization
+        if not args.name:
+            # Auto-detect project name from directory
+            project_name = os.path.basename(os.path.abspath("."))
+        else:
+            project_name = args.name
+        
+        target_dir = Path(".")
+        output_hint = f"cd {project_name}" if args.name else "# Project initialized in current directory"
+    else:
+        # New project creation
+        project_name = args.name or args.name_or_path
+        target_dir = Path(args.output) / project_name
+        output_hint = f"cd {project_name}"
+    
+    # Enhanced validation for in-place initialization
+    if is_in_place:
+        print("uvstart - Initializing Python project")
+        print("=" * 40)
+        
+        # Initialize validator for comprehensive checks
+        validator = InitValidator()
+        
+        # Validate all inputs
+        valid = True
+        valid &= validator.validate_python_version(python_version)
+        valid &= validator.validate_backend(backend)
+        valid &= validator.validate_features(args.features)
+        valid &= validator.validate_directory(str(target_dir.resolve()))
+        valid &= validator.validate_git(args.no_git)
+        
+        # Print any issues
+        validator.print_issues()
+        
+        if not valid:
+            print("\nInitialization failed due to validation errors.")
+            return 1
+        
+        print(f"\nProject configuration:")
+        print(f"  Name: {project_name}")
+        print(f"  Python: {python_version}")
+        print(f"  Backend: {backend}")
+        print(f"  Features: {', '.join(args.features) if args.features else 'none'}")
+        print(f"  Path: {target_dir.resolve()}")
+        print(f"  Git: {'disabled' if args.no_git else 'enabled'}")
+    else:
+        # For new projects, show brief summary
+        features_str = f" with {', '.join(args.features)}" if args.features else ""
+        print(f"Creating {project_name}: backend={backend}, python={python_version}{features_str}")
+    
     # Create template context
     context = TemplateContext(
-        project_name=args.name,
-        description=args.description or f"A Python project: {args.name}",
+        project_name=project_name,
+        description=args.description or f"A Python project: {project_name}",
         version=args.version,
-        author=args.author,
-        email=args.email,
-        backend=args.backend,
-        features=args.features or []
+        author=author,
+        email=email,
+        backend=backend,
+        features=args.features or [],
+        python_version=python_version
     )
     
-    # Generate project structure
-    generator = ProjectGenerator()
-    files = generator.generate_project_structure(context)
+    # Generate project structure using integrated template system that supports user templates
+    if ENHANCED_TEMPLATES:
+        try:
+            from template_manager import IntegratedTemplateManager
+            manager = IntegratedTemplateManager()
+            
+            # Check if we have any user template features
+            user_features = []
+            builtin_features = []
+            
+            for feature in (args.features or []):
+                templates = manager.list_available_templates()
+                feature_template = next((t for t in templates if t.name == feature), None)
+                
+                if feature_template and feature_template.type == "user":
+                    user_features.append(feature)
+                else:
+                    builtin_features.append(feature)
+            
+            # Generate project files
+            if user_features:
+                # For user templates, we need to use the enhanced system
+                files = {}
+                
+                # First generate basic project structure
+                simple_manager = SimpleTemplateManager()
+                basic_files = simple_manager.generate_project_files(context, builtin_features)
+                files.update(basic_files)
+                
+                # Then apply user templates
+                for user_feature in user_features:
+                    success = manager.generate_project(user_feature, context, target_dir)
+                    if not success:
+                        print(f"Warning: Failed to apply user template '{user_feature}'")
+                
+                # For user templates, we've already written files, so set files to empty
+                files = {}
+            else:
+                # Use simple manager for builtin features only
+                simple_manager = SimpleTemplateManager()
+                files = simple_manager.generate_project_files(context, args.features or [])
+        except ImportError as e:
+            # Fallback to simple template system
+            manager = SimpleTemplateManager()
+            files = manager.generate_project_files(context, args.features or [])
+    else:
+        # Use simple template system as fallback
+        manager = SimpleTemplateManager()
+        files = manager.generate_project_files(context, args.features or [])
     
-    # Create project directory
-    project_dir = Path(args.output) / args.name
-    if project_dir.exists() and not args.force:
-        print(f"Error: Directory {project_dir} already exists. Use --force to overwrite.", file=sys.stderr)
-        return 1
+    # Handle directory creation and validation
+    if not is_in_place:
+        # New project creation - check if directory already exists
+        if target_dir.exists() and not args.force:
+            print(f"Error: Directory {target_dir} already exists. Use --force to overwrite.", file=sys.stderr)
+            return 1
+        
+        try:
+            target_dir.mkdir(parents=True, exist_ok=args.force)
+        except Exception as e:
+            print(f"Error creating directory {target_dir}: {e}", file=sys.stderr)
+            return 1
     
     try:
-        project_dir.mkdir(parents=True, exist_ok=args.force)
+        # Remember original directory for git operations
+        original_cwd = os.getcwd()
         
         # Write all files
         created_files = []
         for file_path, content in files.items():
-            full_path = project_dir / file_path
+            full_path = target_dir / file_path
             full_path.parent.mkdir(parents=True, exist_ok=True)
             
             with open(full_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             created_files.append(file_path)
         
-        print(f"Project generated successfully in {project_dir}")
-        print(f"Created {len(created_files)} files:")
-        for file_path in sorted(created_files):
-            print(f"  {file_path}")
+        # Initialize git if requested and not disabled
+        if not args.no_git and shutil.which("git"):
+            try:
+                # Change to project directory for git operations
+                os.chdir(target_dir)
+                
+                subprocess.run(["git", "init"], check=True, capture_output=True)
+                subprocess.run(["git", "add", "."], check=True, capture_output=True)
+                subprocess.run(["git", "commit", "-m", f"Initial commit for {project_name}"], 
+                             check=True, capture_output=True)
+                if is_in_place:
+                    print("Git repository initialized")
+            except subprocess.CalledProcessError as e:
+                if is_in_place:
+                    print(f"Warning: Git initialization failed: {e}")
+            finally:
+                os.chdir(original_cwd)
         
-        print(f"\nNext steps:")
-        print(f"  cd {args.name}")
-        print(f"  {args.backend} sync")
+        # Success message
+        if is_in_place:
+            print(f"\nProject '{project_name}' initialized successfully!")
+        else:
+            print(f" Project created: {target_dir.name}/ ({len(created_files)} files)")
+        
+        if is_in_place:
+            print(f"Created {len(created_files)} files:")
+            for file_path in sorted(created_files):
+                print(f"  {file_path}")
+        
+        print(f"Next: {output_hint} && {backend} sync")
         
         return 0
     
@@ -333,7 +479,24 @@ class InitValidator:
     
     def validate_features(self, features: Optional[List[str]]) -> bool:
         """Validate requested features"""
-        valid_features = ["cli", "web", "notebook", "pytorch"]
+        # Get available features dynamically (same as argument parser)
+        try:
+            from template_commands import TemplateManager
+            manager = TemplateManager()
+            valid_features = [t.name for t in manager.list_templates()]
+            
+            # Also check integrated template manager for user templates
+            try:
+                from template_manager import IntegratedTemplateManager
+                integrated_manager = IntegratedTemplateManager()
+                user_templates = integrated_manager.list_available_templates()
+                user_features = [t.name for t in user_templates if t.type == "user"]
+                valid_features.extend(user_features)
+            except ImportError:
+                pass
+        except:
+            # Fallback to basic features if template manager fails
+            valid_features = ["cli", "web", "notebook", "pytorch"]
         
         if features:
             for feature in features:
@@ -413,93 +576,28 @@ class InitValidator:
 
 
 def init_project(args) -> int:
-    """Initialize a new Python project (migrated from shell script)"""
-    import shutil
+    """Initialize a new Python project (convenience alias for generate command)"""
+    # Convert init arguments to generate arguments
+    from types import SimpleNamespace
     
-    # Initialize validator
-    validator = InitValidator()
+    # Create generate args from init args
+    generate_args = SimpleNamespace(
+        name_or_path=args.path,  # Use path as name_or_path
+        name=args.name,  # Use explicit name if provided
+        description=args.description,
+        version=args.version,
+        author=args.author,
+        email=args.email,
+        backend=args.backend,
+        python_version=args.python_version,
+        features=args.features,
+        output=".",  # Not used for in-place init
+        force=args.force,
+        no_git=args.no_git
+    )
     
-    print("uvstart - Initializing Python project")
-    print("=" * 40)
-    
-    # Validate all inputs
-    valid = True
-    valid &= validator.validate_python_version(args.python_version)
-    valid &= validator.validate_backend(args.backend)
-    valid &= validator.validate_features(args.features)
-    valid &= validator.validate_directory(args.path)
-    valid &= validator.validate_git(args.no_git)
-    
-    # Print any issues
-    validator.print_issues()
-    
-    if not valid:
-        print("\nInitialization failed due to validation errors.")
-        return 1
-    
-    # Determine project name
-    if not args.project_name:
-        args.project_name = os.path.basename(os.path.abspath(args.path))
-    
-    print(f"\nProject configuration:")
-    print(f"  Name: {args.project_name}")
-    print(f"  Python: {args.python_version}")
-    print(f"  Backend: {args.backend}")
-    print(f"  Features: {', '.join(args.features) if args.features else 'none'}")
-    print(f"  Path: {os.path.abspath(args.path)}")
-    print(f"  Git: {'disabled' if args.no_git else 'enabled'}")
-    
-    # Generate project using existing generate functionality
-    try:
-        original_cwd = os.getcwd()
-        os.chdir(args.path)
-        
-        # Create a mock args object for generate_project
-        from types import SimpleNamespace
-        generate_args = SimpleNamespace(
-            name=args.project_name,
-            description=f"A Python project: {args.project_name}",
-            version="0.1.0",
-            author="Your Name",
-            email="your.email@example.com",
-            backend=args.backend,
-            features=args.features,
-            output=".",
-            force=True  # We already validated the directory
-        )
-        
-        result = generate_project(generate_args)
-        if result != 0:
-            return result
-        
-        # Change to the new project directory
-        os.chdir(args.project_name)
-        
-        # Initialize git if requested
-        if not args.no_git and shutil.which("git"):
-            try:
-                subprocess.run(["git", "init"], check=True, capture_output=True)
-                subprocess.run(["git", "add", "."], check=True, capture_output=True)
-                subprocess.run(["git", "commit", "-m", f"Initial commit for {args.project_name}"], 
-                             check=True, capture_output=True)
-                print("Git repository initialized")
-            except subprocess.CalledProcessError as e:
-                print(f"Warning: Git initialization failed: {e}")
-        
-        os.chdir(original_cwd)
-        
-        print(f"\nProject '{args.project_name}' initialized successfully!")
-        print(f"Next steps:")
-        print(f"  cd {args.project_name}")
-        print(f"  {args.backend} sync")
-        if args.features:
-            print(f"  # Explore the generated {', '.join(args.features)} features")
-        
-        return 0
-        
-    except Exception as e:
-        print(f"Error during project generation: {e}")
-        return 1
+    # Call the enhanced generate function
+    return generate_project(generate_args)
 
 
 class SystemChecker:
@@ -628,13 +726,18 @@ class SystemChecker:
         if script_path.exists():
             print(f"SUCCESS: uvstart directory: {script_path}")
             
-            # Check if uvstart executable exists
-            uvstart_exec = script_path / "uvstart"
+            # Check if uvstart executable exists (new isolated installation structure)
+            uvstart_exec = script_path / "bin" / "uvstart"
             if uvstart_exec.exists() and os.access(uvstart_exec, os.X_OK):
                 print(f"SUCCESS: uvstart executable: {uvstart_exec}")
             else:
-                print("ERROR: uvstart executable not found or not executable")
-                self.errors += 1
+                # Fallback check for legacy installation
+                legacy_exec = script_path / "uvstart"
+                if legacy_exec.exists() and os.access(legacy_exec, os.X_OK):
+                    print(f"SUCCESS: uvstart executable: {legacy_exec}")
+                else:
+                    print("ERROR: uvstart executable not found or not executable")
+                    self.errors += 1
             
             # Check if it's accessible as a command
             if shutil.which("uvstart"):
@@ -1093,39 +1196,522 @@ def update_command(args) -> int:
 
 def analyze_project(args) -> int:
     """Analyze current project using Python ecosystem capabilities"""
-    detector = ProjectDetector()
     
-    # Basic project info
-    info = detector.detect_project_info(Path(args.path))
-    print("Project Analysis")
-    print("=" * 50)
-    print(format_project_info(info))
+    project_path = Path(args.path)
+    project_name = project_path.name
     
-    # Configuration detection
-    config = detector.detect_config(Path(args.path))
-    if config:
-        print(f"\nConfiguration found:")
-        print(f"  Backend: {config.backend}")
-        print(f"  Python: {config.python_version}")
-        print(f"  Features: {', '.join(config.features or [])}")
-        print(f"  Dependencies: {len(config.dependencies or [])} packages")
-        print(f"  Dev Dependencies: {len(config.dev_dependencies or [])} packages")
+    print(f"Project: {project_name}")
+    print("=" * 60)
+    print(f"Path: {project_path.resolve()}")
+    
+    # Project structure analysis
+    print(f"\n PROJECT STRUCTURE")
+    structure_info = _analyze_project_structure(project_path)
+    for key, value in structure_info.items():
+        if isinstance(value, bool):
+            status = " Yes" if value else " No"
+            print(f"  {key}: {status}")
+        elif isinstance(value, list) and value:
+            print(f"  {key}: {', '.join(value)}")
+        elif value:
+            print(f"  {key}: {value}")
+    
+    # Backend and dependency management
+    print(f"\n BACKEND & DEPENDENCIES")
+    backend_info = _analyze_backend_info(project_path)
+    for key, value in backend_info.items():
+        if value:
+            print(f"  {key}: {value}")
+    
+    # Project metadata from pyproject.toml or setup.py
+    print(f"\n PROJECT METADATA")
+    metadata = _analyze_project_metadata(project_path)
+    for key, value in metadata.items():
+        if value:
+            print(f"  {key}: {value}")
+    
+    # Git information
+    print(f"\n VERSION CONTROL")
+    git_info = _analyze_git_info(project_path)
+    for key, value in git_info.items():
+        if value:
+            print(f"  {key}: {value}")
+    
+    # Development environment
+    print(f"\n DEVELOPMENT ENVIRONMENT")
+    dev_info = _analyze_dev_environment(project_path)
+    for key, value in dev_info.items():
+        if isinstance(value, bool):
+            status = " Yes" if value else " No"
+            print(f"  {key}: {status}")
+        elif value:
+            print(f"  {key}: {value}")
+    
+    # Possible uvstart features detection
+    print(f"\n DETECTED FEATURES")
+    features = _detect_project_features(project_path)
+    if features:
+        for feature in features:
+            print(f"   {feature}")
     else:
-        print(f"\nNo uvstart configuration found")
+        print("   No specific features detected")
     
-    # Backend detection via C++ engine
-    try:
-        engine = UVStartEngine(args.path)
-        backend_info = format_backend_info(engine)
-        print(f"\n{backend_info}")
-    except Exception as e:
-        print(f"\nEngine error: {e}", file=sys.stderr)
+    # Experiment configuration analysis (new!)
+    print(f"\n EXPERIMENT CONFIGURATION")
+    experiment_info = _analyze_experiment_config(project_path)
+    if experiment_info:
+        for key, value in experiment_info.items():
+            if isinstance(value, dict):
+                print(f"  {key}:")
+                for sub_key, sub_value in value.items():
+                    print(f"    {sub_key}: {sub_value}")
+            elif isinstance(value, list) and value:
+                print(f"  {key}: {', '.join(map(str, value))}")
+            elif value:
+                print(f"  {key}: {value}")
+    else:
+        print("   No experiment configuration detected")
+    
+    # Recommendations
+    print(f"\n RECOMMENDATIONS")
+    recommendations = _generate_recommendations(project_path, structure_info, backend_info, dev_info)
+    if recommendations:
+        for rec in recommendations:
+            print(f"  • {rec}")
+    else:
+        print("   Project looks well configured!")
     
     return 0
 
 
+def _analyze_project_structure(project_path: Path) -> Dict[str, Any]:
+    """Analyze project file structure"""
+    info = {}
+    
+    # Core Python project files
+    info["Has pyproject.toml"] = (project_path / "pyproject.toml").exists()
+    info["Has setup.py"] = (project_path / "setup.py").exists()
+    info["Has requirements.txt"] = (project_path / "requirements.txt").exists()
+    info["Has README"] = any((project_path / f"README{ext}").exists() for ext in [".md", ".rst", ".txt", ""])
+    info["Has .gitignore"] = (project_path / ".gitignore").exists()
+    
+    # Find Python packages/modules
+    packages = []
+    for item in project_path.iterdir():
+        if item.is_dir() and not item.name.startswith('.') and not item.name in ['__pycache__', 'tests', 'docs']:
+            if (item / "__init__.py").exists():
+                packages.append(item.name)
+    info["Python packages"] = packages
+    
+    # Test directory
+    test_dirs = []
+    for test_name in ['tests', 'test', 'testing']:
+        if (project_path / test_name).exists():
+            test_dirs.append(test_name)
+    info["Test directories"] = test_dirs
+    
+    # Documentation
+    docs_dirs = []
+    for doc_name in ['docs', 'doc', 'documentation']:
+        if (project_path / doc_name).exists():
+            docs_dirs.append(doc_name)
+    info["Documentation"] = docs_dirs
+    
+    return info
+
+
+def _analyze_backend_info(project_path: Path) -> Dict[str, str]:
+    """Analyze backend and dependency management"""
+    info = {}
+    
+    # Backend detection via C++ engine
+    try:
+        engine = UVStartEngine(str(project_path))
+        backend = engine.detect_backend()
+        if backend:
+            info["Backend"] = backend
+            version = engine.get_version()
+            if version:
+                info["Backend version"] = version
+        else:
+            info["Backend"] = "None detected"
+    except Exception as e:
+        info["Backend"] = f"Error: {e}"
+    
+    # Lock files detection
+    lock_files = []
+    lock_patterns = ['uv.lock', 'poetry.lock', 'pdm.lock', 'Pipfile.lock', 'requirements.lock']
+    for pattern in lock_patterns:
+        if (project_path / pattern).exists():
+            lock_files.append(pattern)
+    if lock_files:
+        info["Lock files"] = ", ".join(lock_files)
+    
+    # Virtual environment detection
+    venv_paths = []
+    venv_names = ['.venv', 'venv', '.virtualenv', '__pypackages__']
+    for venv_name in venv_names:
+        if (project_path / venv_name).exists():
+            venv_paths.append(venv_name)
+    if venv_paths:
+        info["Virtual environment"] = ", ".join(venv_paths)
+    
+    return info
+
+
+def _analyze_project_metadata(project_path: Path) -> Dict[str, str]:
+    """Extract project metadata from configuration files"""
+    info = {}
+    
+    # Try to parse pyproject.toml
+    pyproject_path = project_path / "pyproject.toml"
+    if pyproject_path.exists():
+        try:
+            content = pyproject_path.read_text()
+            
+            # Simple regex-based parsing (avoiding dependencies)
+            import re
+            
+            # Extract name
+            name_match = re.search(r'name\s*=\s*["\']([^"\']+)["\']', content)
+            if name_match:
+                info["Name"] = name_match.group(1)
+            
+            # Extract version
+            version_match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content)
+            if version_match:
+                info["Version"] = version_match.group(1)
+            
+            # Extract description
+            desc_match = re.search(r'description\s*=\s*["\']([^"\']+)["\']', content)
+            if desc_match:
+                info["Description"] = desc_match.group(1)
+            
+            # Extract author
+            author_match = re.search(r'authors\s*=\s*\[\s*["\']([^"\']+)["\']', content)
+            if author_match:
+                info["Author"] = author_match.group(1)
+            else:
+                author_simple_match = re.search(r'author\s*=\s*["\']([^"\']+)["\']', content)
+                if author_simple_match:
+                    info["Author"] = author_simple_match.group(1)
+            
+            # Extract Python requirement
+            python_match = re.search(r'requires-python\s*=\s*["\']([^"\']+)["\']', content)
+            if python_match:
+                info["Python requirement"] = python_match.group(1)
+                
+        except Exception:
+            pass
+    
+    return info
+
+
+def _analyze_git_info(project_path: Path) -> Dict[str, str]:
+    """Analyze git repository information"""
+    info = {}
+    
+    if not (project_path / ".git").exists():
+        info["Git repository"] = " No"
+        return info
+    
+    info["Git repository"] = " Yes"
+    
+    try:
+        # Get current branch
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            info["Current branch"] = result.stdout.strip()
+        
+        # Get commit count
+        result = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            info["Commits"] = result.stdout.strip()
+        
+        # Check for uncommitted changes
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            if result.stdout.strip():
+                info["Status"] = " Uncommitted changes"
+            else:
+                info["Status"] = " Clean"
+        
+        # Get remote info
+        result = subprocess.run(
+            ["git", "remote", "-v"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            lines = result.stdout.strip().split('\n')
+            if lines:
+                # Extract first remote URL
+                remote_line = lines[0]
+                if '\t' in remote_line:
+                    remote_url = remote_line.split('\t')[1].split(' ')[0]
+                    info["Remote"] = remote_url
+                    
+    except Exception:
+        pass
+    
+    return info
+
+
+def _analyze_dev_environment(project_path: Path) -> Dict[str, Any]:
+    """Analyze development environment setup"""
+    info = {}
+    
+    # CI/CD files
+    ci_files = []
+    github_actions = project_path / ".github" / "workflows"
+    if github_actions.exists():
+        ci_files.append("GitHub Actions")
+    
+    for ci_file in [".travis.yml", ".circleci", "azure-pipelines.yml", ".gitlab-ci.yml"]:
+        if (project_path / ci_file).exists():
+            ci_files.append(ci_file.replace(".", "").replace("-", " ").title())
+    
+    info["CI/CD"] = len(ci_files) > 0
+    if ci_files:
+        info["CI/CD systems"] = ", ".join(ci_files)
+    
+    # Development tools config
+    dev_configs = []
+    dev_tools = {
+        ".pre-commit-config.yaml": "pre-commit",
+        "pyproject.toml": "tool configs",
+        ".flake8": "flake8", 
+        ".pylintrc": "pylint",
+        "tox.ini": "tox",
+        "Dockerfile": "Docker",
+        "docker-compose.yml": "Docker Compose",
+        ".devcontainer": "Dev Container"
+    }
+    
+    for file_name, tool_name in dev_tools.items():
+        if (project_path / file_name).exists():
+            dev_configs.append(tool_name)
+    
+    if dev_configs:
+        info["Dev tools"] = ", ".join(dev_configs)
+    
+    # Check for common Python quality tools in pyproject.toml
+    pyproject_path = project_path / "pyproject.toml"
+    if pyproject_path.exists():
+        content = pyproject_path.read_text()
+        quality_tools = []
+        if "[tool.black]" in content:
+            quality_tools.append("black")
+        if "[tool.ruff]" in content:
+            quality_tools.append("ruff")
+        if "[tool.mypy]" in content:
+            quality_tools.append("mypy")
+        if "[tool.pytest]" in content:
+            quality_tools.append("pytest")
+        
+        if quality_tools:
+            info["Code quality tools"] = ", ".join(quality_tools)
+    
+    return info
+
+
+def _detect_project_features(project_path: Path) -> List[str]:
+    """Detect what uvstart features this project might have used"""
+    features = []
+    
+    # Check for web framework files
+    main_py = project_path / "main.py"
+    if main_py.exists():
+        content = main_py.read_text()
+        if "fastapi" in content.lower() or "flask" in content.lower() or "django" in content.lower():
+            features.append("web")
+    
+    # Check for CLI features
+    if main_py.exists():
+        content = main_py.read_text()
+        if "click" in content.lower() or "argparse" in content.lower() or "typer" in content.lower():
+            features.append("cli")
+    
+    # Check for notebook files
+    if any(project_path.glob("*.ipynb")):
+        features.append("notebook")
+    
+    # Check for PyTorch/ML files
+    for file_path in project_path.rglob("*.py"):
+        try:
+            content = file_path.read_text()
+            if "torch" in content.lower() or "pytorch" in content.lower():
+                features.append("pytorch")
+                break
+        except:
+            continue
+    
+    # Check for microservice indicators
+    if (project_path / "Dockerfile").exists() and main_py.exists():
+        features.append("microservice")
+    
+    return list(set(features))  # Remove duplicates
+
+
+def _analyze_experiment_config(project_path: Path) -> Dict[str, Any]:
+    """Analyze for experiment configuration files and parameters."""
+    experiment_info = {}
+    
+    # Check for common experiment file patterns
+    experiment_files = [
+        "experiment.toml", "experiment.yaml", "experiment.json",
+        "params.toml", "params.yaml", "params.json", 
+        "config.toml", "config.yaml", "config.json"
+    ]
+    
+    for file_name in experiment_files:
+        config_path = project_path / file_name
+        if config_path.exists():
+            try:
+                if file_name.endswith('.toml'):
+                    try:
+                        import tomllib
+                        with open(config_path, 'rb') as f:
+                            config_data = tomllib.load(f)
+                        experiment_info[f"Config file"] = file_name
+                        experiment_info[f"Parameters"] = config_data
+                    except ImportError:
+                        experiment_info[f"Config file"] = f"{file_name} (tomllib not available)"
+                
+                elif file_name.endswith(('.yaml', '.yml')):
+                    try:
+                        import yaml
+                        with open(config_path, 'r') as f:
+                            config_data = yaml.safe_load(f)
+                        experiment_info[f"Config file"] = file_name
+                        experiment_info[f"Parameters"] = config_data
+                    except ImportError:
+                        experiment_info[f"Config file"] = f"{file_name} (yaml not available)"
+                
+                elif file_name.endswith('.json'):
+                    import json
+                    with open(config_path, 'r') as f:
+                        config_data = json.load(f)
+                    experiment_info[f"Config file"] = file_name
+                    experiment_info[f"Parameters"] = config_data
+                    
+            except Exception as e:
+                experiment_info[f"Config file"] = f"{file_name} (error: {e})"
+            
+            # Only process the first config file found
+            break
+    
+    # Check for experiment-specific files
+    experiment_scripts = []
+    if (project_path / "train.py").exists():
+        experiment_scripts.append("train.py")
+    if (project_path / "evaluate.py").exists():
+        experiment_scripts.append("evaluate.py")
+    if (project_path / "predict.py").exists():
+        experiment_scripts.append("predict.py")
+    if any(project_path.glob("*.ipynb")):
+        notebooks = list(project_path.glob("*.ipynb"))
+        experiment_scripts.extend([nb.name for nb in notebooks[:3]])  # Show first 3
+    
+    if experiment_scripts:
+        experiment_info["Experiment scripts"] = experiment_scripts
+    
+    # Check for experiment-specific directories
+    experiment_dirs = []
+    common_dirs = ["data", "models", "logs", "outputs", "results", "checkpoints"]
+    for dir_name in common_dirs:
+        if (project_path / dir_name).exists():
+            experiment_dirs.append(dir_name)
+    
+    if experiment_dirs:
+        experiment_info["Experiment directories"] = experiment_dirs
+    
+    # Look for template origin info (check if this experiment was created from a template)
+    template_indicators = []
+    
+    # Check for uvstart template metadata
+    if (project_path / ".uvstart-template").exists():
+        try:
+            with open(project_path / ".uvstart-template", 'r') as f:
+                template_info = f.read().strip()
+                template_indicators.append(f"Created from template: {template_info}")
+        except:
+            template_indicators.append("Created from uvstart template")
+    
+    # Check for common template files that indicate experiment origin
+    template_files = [".template-origin", ".experiment-template", "TEMPLATE_INFO.md"]
+    for template_file in template_files:
+        if (project_path / template_file).exists():
+            template_indicators.append(f"Template metadata: {template_file}")
+    
+    if template_indicators:
+        experiment_info["Template origin"] = template_indicators
+    
+    return experiment_info
+
+
+def _generate_recommendations(project_path: Path, structure_info: Dict, backend_info: Dict, dev_info: Dict) -> List[str]:
+    """Generate recommendations for improving the project"""
+    recommendations = []
+    
+    # Missing essential files
+    if not structure_info.get("Has README"):
+        recommendations.append("Add a README.md file to document your project")
+    
+    if not structure_info.get("Has .gitignore"):
+        recommendations.append("Add a .gitignore file for Python projects")
+    
+    # Backend recommendations
+    if backend_info.get("Backend") == "None detected":
+        recommendations.append("Consider using a package manager like uv, poetry, or pdm")
+    
+    if not backend_info.get("Virtual environment"):
+        recommendations.append("Set up a virtual environment for isolation")
+    
+    # Development improvements
+    if not dev_info.get("CI/CD"):
+        recommendations.append("Set up CI/CD pipeline (GitHub Actions, etc.)")
+    
+    if not structure_info.get("Test directories"):
+        recommendations.append("Add a tests/ directory and write tests")
+    
+    if not dev_info.get("Code quality tools"):
+        recommendations.append("Configure code quality tools (ruff, black, mypy)")
+    
+    # Git recommendations
+    git_info = _analyze_git_info(project_path)
+    if git_info.get("Git repository") == " No":
+        recommendations.append("Initialize a git repository: git init")
+    
+    return recommendations
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create the argument parser with all commands and options"""
+    # Get configuration for defaults
+    config = get_config()
+    defaults = config.get_all_defaults()
+    
     parser = argparse.ArgumentParser(
         prog="uvstart",
         description="Python project initializer with backend abstraction",
@@ -1140,7 +1726,7 @@ def create_parser() -> argparse.ArgumentParser:
     
     parser.add_argument(
         "--backend", "-b",
-        help="Force specific backend (uv, poetry, pdm, rye, hatch)"
+        help="Force specific backend (uv, poetry, pdm)"
     )
     
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -1151,27 +1737,31 @@ def create_parser() -> argparse.ArgumentParser:
     # Analyze command (new advanced feature)
     analyze_parser = subparsers.add_parser("analyze", help="Analyze project with Python ecosystem capabilities")
     
-    # Generate command (new advanced feature)
+    # Generate command (enhanced to handle both new projects and in-place initialization)
     generate_parser = subparsers.add_parser("generate", help="Generate new project from templates")
-    generate_parser.add_argument("name", help="Project name")
+    generate_parser.add_argument("name_or_path", help="Project name or path (use '.' for current directory)")
+    generate_parser.add_argument("--name", help="Project name (required when using '.' as name_or_path)")
     generate_parser.add_argument("--description", help="Project description")
     generate_parser.add_argument("--version", default="0.1.0", help="Project version")
-    generate_parser.add_argument("--author", default="Your Name", help="Author name")
-    generate_parser.add_argument("--email", default="your.email@example.com", help="Author email")
-    generate_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
+    generate_parser.add_argument("--author", help=f"Author name (default: {defaults['author']})")
+    generate_parser.add_argument("--email", help=f"Author email (default: {defaults['email']})")
+    generate_parser.add_argument("--backend", choices=["uv", "poetry", "pdm"], help=f"Backend to use (default: {defaults['backend']})")
+    generate_parser.add_argument("--python-version", help=f"Python version (default: {defaults['python_version']})")
     
     # Get available features dynamically
-    try:
-        from template_commands import TemplateManager
-        manager = TemplateManager()
-        available_features = [t.name for t in manager.list_templates()]
-    except:
-        # Fallback to basic features if template manager fails
-        available_features = ["cli", "web", "notebook", "pytorch"]
+    available_features = ["cli", "web", "notebook", "pytorch"]  # Basic features always available
+    if ENHANCED_TEMPLATES:
+        try:
+            manager = TemplateManager()
+            enhanced_features = [t.name for t in manager.list_templates()]
+            available_features = enhanced_features
+        except:
+            pass  # Fall back to basic features
     
     generate_parser.add_argument("--features", nargs="*", choices=available_features, help="Features to include")
     generate_parser.add_argument("--output", default=".", help="Output directory")
     generate_parser.add_argument("--force", action="store_true", help="Overwrite existing directory")
+    generate_parser.add_argument("--no-git", action="store_true", help="Do not initialize git repository")
     
     # Add command
     add_parser = subparsers.add_parser("add", help="Add package")
@@ -1203,14 +1793,19 @@ def create_parser() -> argparse.ArgumentParser:
     install_parser = subparsers.add_parser("install", help="Show installation command for backend")
     install_parser.add_argument("backend", help="Backend name")
     
-    # Init command
-    init_parser = subparsers.add_parser("init", help="Initialize a new Python project")
-    init_parser.add_argument("path", help="Project path")
-    init_parser.add_argument("--project-name", help="Project name (defaults to path basename)")
-    init_parser.add_argument("--python-version", default="3.11", help="Python version to use (e.g., 3.11, 3.12)")
-    init_parser.add_argument("--backend", default="uv", choices=["uv", "poetry", "pdm"], help="Backend to use")
+    # Init command (convenience alias for generate with in-place behavior)
+    init_parser = subparsers.add_parser("init", help="Initialize a new Python project in current directory")
+    init_parser.add_argument("path", nargs="?", default=".", help="Project path (default: current directory)")
+    init_parser.add_argument("--name", help="Project name (defaults to directory basename)")
+    init_parser.add_argument("--python-version", help=f"Python version (default: {defaults['python_version']})")
+    init_parser.add_argument("--backend", choices=["uv", "poetry", "pdm"], help=f"Backend to use (default: {defaults['backend']})")
     init_parser.add_argument("--features", nargs="*", choices=available_features, help="Features to include")
     init_parser.add_argument("--no-git", action="store_true", help="Do not initialize git repository")
+    init_parser.add_argument("--description", help="Project description")
+    init_parser.add_argument("--version", default="0.1.0", help="Project version")
+    init_parser.add_argument("--author", help=f"Author name (default: {defaults['author']})")
+    init_parser.add_argument("--email", help=f"Author email (default: {defaults['email']})")
+    init_parser.add_argument("--force", action="store_true", help="Overwrite existing files")
     
     # Doctor command
     doctor_parser = subparsers.add_parser("doctor", help="Check system health and uvstart installation")

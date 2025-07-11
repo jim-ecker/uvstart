@@ -31,10 +31,10 @@ COMMANDS:
     run        Run a command in the project environment
     list       List installed packages
     info       Show backend information
-    generate   Generate new project from templates
+    generate   Generate new project from templates (handles both new and in-place)
     template   Manage and create templates
     analyze    Analyze current project
-    init       Initialize a new Python project
+    init       Initialize a Python project in current directory
     doctor     Check environment health and dependencies
     update     Update uvstart to the latest version
     
@@ -44,8 +44,9 @@ Run 'uvstart <command> --help' for command-specific options.
 
 EXAMPLES:
     # Hybrid system commands (Python frontend + C++ engine)
-    uvstart init /path/to/project --backend uv --features cli
-    uvstart generate my-cli --features cli --backend uv
+    uvstart generate my-project --features cli --backend uv     # New project
+    uvstart init --features cli --backend uv                   # Initialize current directory
+    uvstart generate . --name my-project --features cli        # In-place with explicit name
     uvstart template from-directory my-template
     uvstart template list
     uvstart add requests pandas

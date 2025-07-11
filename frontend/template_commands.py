@@ -39,7 +39,17 @@ class TemplateManager:
     
     def __init__(self):
         self.templates_dir = Path(__file__).parent.parent / "templates"
-        self.user_templates_dir = Path.home() / ".local" / "uvstart" / "user-templates"
+        
+        # Use consistent user templates directory (same as UserTemplateManager)
+        home = Path.home()
+        if os.name == 'posix':
+            config_home = os.environ.get('XDG_CONFIG_HOME', home / '.config')
+            self.user_templates_dir = Path(config_home) / 'uvstart' / 'user-templates'
+        else:
+            # Windows
+            appdata = os.environ.get('APPDATA', home / 'AppData' / 'Roaming')
+            self.user_templates_dir = Path(appdata) / 'uvstart' / 'user-templates'
+        
         self.user_templates_dir.mkdir(parents=True, exist_ok=True)
         
         # Template patterns to ignore when creating from directory
@@ -195,7 +205,11 @@ class TemplateManager:
         """Create a regular template from directory"""
         print(f"Creating template '{template_name}' from directory: {source_dir}")
         
-        # Create template directory
+        # STEP 1: Enhance the source directory with Python project files
+        print("Step 1: Enhancing source directory with Python project structure...")
+        self._enhance_source_directory(source_dir, template_name, description)
+        
+        # STEP 2: Create template directory
         template_dir = self.user_templates_dir / "templates" / "features" / template_name
         if template_dir.exists():
             response = input(f"Template '{template_name}' already exists. Overwrite? (y/N): ")
@@ -205,32 +219,137 @@ class TemplateManager:
         
         template_dir.mkdir(parents=True, exist_ok=True)
         
-        # Analyze source directory
+        # STEP 3: Analyze the enhanced source directory
         template_vars: Set[str] = set()
         files_to_process = []
+        processed_files = []  # Track what files we actually create
         
+        # First, handle all files
         for file_path in source_dir.rglob('*'):
             if file_path.is_file() and not self._should_ignore_file(file_path, source_dir):
                 rel_path = file_path.relative_to(source_dir)
                 files_to_process.append((file_path, rel_path))
         
-        print(f"Processing {len(files_to_process)} files...")
+        # Then, handle empty directories by creating .gitkeep files
+        empty_dirs = []
+        for dir_path in source_dir.rglob('*'):
+            if dir_path.is_dir() and not self._should_ignore_file(dir_path, source_dir):
+                # Check if directory is empty (no non-ignored files)
+                has_files = False
+                for item in dir_path.rglob('*'):
+                    if item.is_file() and not self._should_ignore_file(item, source_dir):
+                        has_files = True
+                        break
+                
+                if not has_files:
+                    rel_path = dir_path.relative_to(source_dir)
+                    empty_dirs.append(rel_path)
+                    print(f"Found empty directory: {rel_path}")
+        
+        print(f"Step 2: Processing {len(files_to_process)} files and {len(empty_dirs)} empty directories...")
         
         # Process files and extract template variables
         for source_file, rel_path in files_to_process:
-            self._process_template_file(source_file, template_dir / rel_path, template_vars, template_name)
+            target_file_info = self._process_template_file(source_file, template_dir / rel_path, template_vars, template_name)
+            if target_file_info:
+                processed_files.append(target_file_info)
         
-        # Create template.yaml
-        self._create_template_yaml(template_dir, template_name, description, category, template_vars)
+        # Create .gitkeep files for empty directories
+        for empty_dir in empty_dirs:
+            gitkeep_path = template_dir / empty_dir / '.gitkeep'
+            gitkeep_path.parent.mkdir(parents=True, exist_ok=True)
+            gitkeep_path.write_text('')
+            
+            processed_files.append({
+                'source_path': str(source_dir / empty_dir),
+                'target_path': str(gitkeep_path),
+                'is_processed': True,
+                'is_empty_dir_placeholder': True
+            })
+        
+        # Create template.yaml with the actual files we processed
+        self._create_template_yaml(template_dir, template_name, description, category, template_vars, processed_files)
         
         # Create README for the template
         self._create_template_readme(template_dir, template_name, description, template_vars)
         
-        print(f"✅ Template '{template_name}' created successfully!")
-        print(f"📁 Location: {template_dir}")
-        print(f"🧪 Test it: uvstart generate test-{template_name} --features {template_name}")
+        # Register the template (important for UserTemplateManager integration)
+        self._register_template(template_name, {
+            'description': description or f"Template generated from {source_dir.name}",
+            'category': category or 'custom',
+            'author': 'user',
+            'version': '1.0.0',
+            'created_at': datetime.now().isoformat(),
+            'updated_at': datetime.now().isoformat(),
+            'is_active': True,
+            'is_base_template': False
+        })
+        
+        print(f" Template '{template_name}' created successfully!")
+        print(f" Template location: {template_dir}")
+        print(f" Enhanced source: {source_dir}")
+        print(f" Test it: uvstart init --name test-{template_name} --features {template_name}")
         
         return True
+    
+    def _load_registry(self) -> Dict[str, Any]:
+        """Load the template registry"""
+        registry_file = self.user_templates_dir / "registry.json"
+        if registry_file.exists():
+            with open(registry_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return {}
+    
+    def _save_registry(self, registry: Dict[str, Any]) -> None:
+        """Save the template registry"""
+        registry_file = self.user_templates_dir / "registry.json"
+        with open(registry_file, 'w', encoding='utf-8') as f:
+            json.dump(registry, f, indent=2)
+    
+    def _register_template(self, name: str, info: Dict[str, Any]) -> None:
+        """Register a template in the registry"""
+        registry = self._load_registry()
+        registry[name] = info
+        self._save_registry(registry)
+    
+    def _enhance_source_directory(self, source_dir: Path, template_name: str, description: Optional[str]) -> None:
+        """Enhance the source directory with Python project files"""
+        from simple_templates import SimpleTemplateManager, TemplateContext
+        
+        # Create a template context for the source directory
+        context = TemplateContext(
+            project_name=template_name,
+            description=description or f"Project based on {template_name}",
+            version="0.1.0",
+            author="Developer",
+            email="dev@example.com",
+            backend="uv",
+            features=[],
+            python_version="3.11"
+        )
+        
+        # Generate basic Python project structure
+        simple_manager = SimpleTemplateManager()
+        project_files = simple_manager.generate_project_files(context, [])
+        
+        # Write the Python project files to the source directory
+        files_created = []
+        for file_path, content in project_files.items():
+            full_path = source_dir / file_path
+            
+            # Don't overwrite existing files
+            if full_path.exists():
+                continue
+                
+            full_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(full_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            files_created.append(file_path)
+        
+        if files_created:
+            print(f"   Added Python project files: {', '.join(files_created)}")
+        else:
+            print(f"  ℹ  Source directory already has Python project files")
     
     def _should_ignore_file(self, file_path: Path, source_dir: Path) -> bool:
         """Check if file should be ignored when creating template"""
@@ -246,7 +365,7 @@ class TemplateManager:
         return False
     
     def _process_template_file(self, source_file: Path, target_file: Path, 
-                             template_vars: Set[str], template_name: str) -> None:
+                             template_vars: Set[str], template_name: str) -> Optional[Dict[str, Any]]:
         """Process a file for template creation, extracting variables"""
         target_file.parent.mkdir(parents=True, exist_ok=True)
         
@@ -266,13 +385,29 @@ class TemplateManager:
             with open(target_path, 'w', encoding='utf-8') as f:
                 f.write(processed_content)
                 
+            return {
+                'source_path': str(source_file),
+                'target_path': str(target_path),
+                'is_processed': True
+            }
+                
         except UnicodeDecodeError:
             # Binary file, copy as-is
             shutil.copy2(source_file, target_file)
+            return {
+                'source_path': str(source_file),
+                'target_path': str(target_file),
+                'is_processed': True
+            }
         except Exception as e:
             print(f"Warning: Could not process {source_file}: {e}")
             # Copy as-is on error
             shutil.copy2(source_file, target_file)
+            return {
+                'source_path': str(source_file),
+                'target_path': str(target_file),
+                'is_processed': True
+            }
     
     def _extract_and_replace_variables(self, content: str, template_vars: Set[str], 
                                      template_name: str) -> str:
@@ -309,8 +444,45 @@ class TemplateManager:
     def _create_template_yaml(self, template_dir: Path, template_name: str,
                             description: Optional[str] = None,
                             category: Optional[str] = None,
-                            template_vars: Optional[Set[str]] = None) -> None:
+                            template_vars: Optional[Set[str]] = None,
+                            processed_files: Optional[List[Dict[str, Any]]] = None) -> None:
         """Create template.yaml configuration"""
+        
+        # Generate files section based on actually processed files
+        files_to_generate = []
+        
+        if processed_files:
+            for file_info in processed_files:
+                target_path = Path(file_info['target_path'])
+                # Make path relative to template directory
+                rel_path = target_path.relative_to(template_dir)
+                
+                # Determine final path in generated project
+                if rel_path.suffix == '.j2':
+                    # Template file - remove .j2 extension for final path
+                    final_path = str(rel_path.with_suffix(''))
+                    file_entry = {
+                        'path': final_path,
+                        'template': str(rel_path)
+                    }
+                else:
+                    # Static file - copy as-is
+                    file_entry = {
+                        'path': str(rel_path),
+                        'source': str(rel_path)
+                    }
+                
+                files_to_generate.append(file_entry)
+        
+        # If no files were processed, add a basic structure
+        if not files_to_generate:
+            files_to_generate = [
+                {
+                    'path': '{{package_name}}/__init__.py',
+                    'content': ''
+                }
+            ]
+        
         config = {
             'metadata': {
                 'name': template_name,
@@ -319,29 +491,46 @@ class TemplateManager:
                 'version': '1.0.0',
                 'author': 'user',
                 'created_at': datetime.now().isoformat(),
-                'tags': ['user-generated'],
-                'features': list(self._infer_features(template_dir)),
-                'template_variables': list(template_vars) if template_vars else []
+                'tags': ['user-generated', 'from-directory'],
+                'features': [template_name],
+                'template_variables': list(template_vars) if template_vars else [],
+                'min_python': '3.8',
+                'includes_ci': False,
+                'includes_docker': False,
+                'includes_tests': any('test' in str(f.get('path', '')) for f in files_to_generate)
             },
             'requirements': {
                 'dependencies': [],
-                'dev_dependencies': []
+                'dev_dependencies': [
+                    'pytest>=7.0',
+                    'black>=22.0',
+                    'ruff>=0.1.0'
+                ]
             },
             'files': {
-                'generate': [
-                    {
-                        'path': '{{project_name}}/__init__.py',
-                        'content': ''
-                    }
+                'generate': files_to_generate
+            },
+            'hooks': {
+                'pre_generate': [
+                    f"echo 'Generating {template_name} project from directory template...'"
+                ],
+                'post_generate': [
+                    f"echo '{template_name} project created!'",
+                    "echo 'Next steps:'",
+                    "echo '1. {{backend}} sync'",
+                    "echo '2. Start working with your replicated structure!'"
                 ]
             }
         }
         
-        # Try to detect dependencies
-        req_files = ['requirements.txt', 'pyproject.toml', 'setup.py']
-        for req_file in req_files:
-            if (template_dir / req_file).exists():
-                config['requirements']['detected_from'] = req_file
+        # Try to detect dependencies from common files
+        dep_files = ['requirements.txt', 'pyproject.toml', 'setup.py', 'setup.cfg', 'poetry.lock', 'uv.lock']
+        detected_deps = []
+        
+        for dep_file in dep_files:
+            if (template_dir / dep_file).exists():
+                config['requirements']['detected_from'] = dep_file
+                # Could parse dependencies here in the future
                 break
         
         if HAS_YAML:
@@ -436,7 +625,7 @@ Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             response = input(f"Are you sure you want to delete template '{template_name}'? (y/N): ")
             if response.lower() == 'y':
                 shutil.rmtree(template.path)
-                print(f"✅ Template '{template_name}' deleted successfully")
+                print(f" Template '{template_name}' deleted successfully")
                 return True
             else:
                 print("Deletion cancelled")

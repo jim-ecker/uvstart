@@ -343,6 +343,21 @@ class YAMLTemplateLoader:
         if not config_file.exists():
             config_file = self.template_dir / "base" / template_name / "template.yaml"
         
+        # Also check user templates directory
+        if not config_file.exists():
+            try:
+                from user_templates import UserTemplateManager
+                user_manager = UserTemplateManager()
+                user_feature_path = user_manager.user_templates_dir / "templates" / "features" / template_name / "template.yaml"
+                if user_feature_path.exists():
+                    config_file = user_feature_path
+                else:
+                    user_base_path = user_manager.user_templates_dir / "templates" / "base" / template_name / "template.yaml"
+                    if user_base_path.exists():
+                        config_file = user_base_path
+            except ImportError:
+                pass
+        
         if not config_file.exists():
             # Fallback to generating config from directory structure
             return self._generate_config_from_directory(template_name)
