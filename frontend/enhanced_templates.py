@@ -171,7 +171,8 @@ class EnhancedTemplateEngine:
                 loader=jinja2.BaseLoader(),
                 trim_blocks=True,
                 lstrip_blocks=True,
-                undefined=jinja2.StrictUndefined
+                undefined=jinja2.StrictUndefined,
+                autoescape=True
             )
             # Add custom filters
             self.jinja_env.filters['snake_case'] = self._snake_case

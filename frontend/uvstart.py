@@ -983,7 +983,7 @@ class UpdateManager:
             
             # Make sure the main script is executable
             uvstart_script = self.install_dir / "uvstart"
-            os.chmod(uvstart_script, 0o755)
+            os.chmod(uvstart_script, 0o744)
             
             # Rebuild C++ engine if needed
             engine_dir = self.install_dir / "engine"
