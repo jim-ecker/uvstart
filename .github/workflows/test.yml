@@ -72,4 +72,4 @@ jobs:
 
       - name: Run basic test suite
         run: |
-          chmod +x test_uvstart_
+          chmod +x test_uvstart.sh
